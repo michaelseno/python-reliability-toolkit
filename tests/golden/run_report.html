@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>ReliabilityKit Run 20260303T120000Z-golden01</title>
+    <style>
+      body { font-family: ui-sans-serif, sans-serif; margin: 24px; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+      th { background: #f5f5f5; }
+    </style>
+  </head>
+  <body>
+    <h1>Run 20260303T120000Z-golden01</h1>
+    <p>Status: <strong>failed</strong> | Duration: 12000 ms</p>
+    <p>Project: reliability-toolkit | Started: 2026-03-03 12:00:00+00:00</p>
+    <h2>Totals</h2>
+    <ul>
+      <li>Passed: 1</li>
+      <li>Failed: 1</li>
+      <li>Skipped: 0</li>
+    </ul>
+    <h2>Tests</h2>
+    <table>
+      <thead>
+        <tr><th>NodeID</th><th>Status</th><th>Failure Type</th><th>Duration (ms)</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>tests/e2e/test_file.py::test_ok</td>
+          <td>passed</td>
+          <td>unknown</td>
+          <td>200</td>
+        </tr>
+        <tr>
+          <td>tests/e2e/test_file.py::test_fail</td>
+          <td>failed</td>
+          <td>assertion_failure</td>
+          <td>500</td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>
