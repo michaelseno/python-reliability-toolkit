@@ -26,12 +26,12 @@ chaos:
         min: 200
         max: 500
       targets:
-        - host: www.saucedemo.com
-          url_pattern: "/inventory"
+        - host: api.practicesoftwaretesting.com
+          url_pattern: "/products"
           methods: ["GET"]
           resource_types: ["document", "xhr", "fetch"]
-        - host: www.saucedemo.com
-          url_pattern: "/cart"
+        - host: api.practicesoftwaretesting.com
+          url_pattern: "/brands"
           methods: ["GET"]
           resource_types: ["document", "xhr", "fetch"]
     checkout_fault:
@@ -40,8 +40,8 @@ chaos:
       seed: 42
       status_codes: [500, 503]
       targets:
-        - host: www.saucedemo.com
-          url_pattern: "/checkout"
+        - host: api.practicesoftwaretesting.com
+          url_pattern: "/users"
           methods: ["GET", "POST"]
           resource_types: ["document", "xhr", "fetch"]
 

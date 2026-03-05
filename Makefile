@@ -1,7 +1,7 @@
 PYTHON := .venv/bin/python
 PLAYWRIGHT_DOWNLOAD_HOST ?= https://playwright.azureedge.net
 
-.PHONY: venv install browsers test test-unit test-e2e run run-chaos-latency run-chaos-fault inspect trend report
+.PHONY: venv install browsers test test-unit test-guardrails test-e2e run run-chaos-latency run-chaos-fault inspect trend report
 
 venv:
 	uv venv
@@ -16,6 +16,9 @@ test: test-unit
 
 test-unit:
 	$(PYTHON) -m pytest tests/unit
+
+test-guardrails:
+	$(PYTHON) -m pytest tests/unit/test_e2e_architecture_guardrails.py
 
 test-e2e:
 	$(PYTHON) -m pytest tests/e2e

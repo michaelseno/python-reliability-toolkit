@@ -31,4 +31,8 @@ include = ["reliabilitykit*"]
 asyncio_mode = "auto"
 markers = [
   "chaos: tests that run with chaos profile",
+  "smoke: fast route and UI smoke checks",
+  "positive: expected success behavior checks",
+  "negative: expected failure and validation checks",
+  "edge: edge-case behavior checks",
 ]

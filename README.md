@@ -1,8 +1,21 @@
 # ReliabilityKit
 
+[![PR CI](https://github.com/michaelseno/python-reliability-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/michaelseno/python-reliability-toolkit/actions/workflows/ci.yml)
+[![Scheduled CI](https://github.com/michaelseno/python-reliability-toolkit/actions/workflows/ci-scheduled.yml/badge.svg)](https://github.com/michaelseno/python-reliability-toolkit/actions/workflows/ci-scheduled.yml)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
+
 ReliabilityKit is a local-first reliability execution layer for Python Playwright + pytest.
 It wraps test execution and emits structured run records, artifacts, failure classifications,
 and HTML reports so every run becomes analyzable data.
+
+## Project Status
+
+- **Status:** MVP complete and actively evolving
+- **Execution engine:** CLI-first with importable core modules
+- **Storage:** local-first run records and artifacts (`.reliabilitykit/`), S3 backend scaffolded
+- **Test coverage:** 51 POM-based Playwright e2e scenarios on `https://practicesoftwaretesting.com`
+- **Quality gates:** unit tests, golden snapshot tests, architecture guardrails, PR CI, and scheduled CI
+- **Next milestones:** richer trend analytics, expanded failure classification, and production-ready S3 backend
 
 ## Quickstart (uv + venv)
 
@@ -24,6 +37,14 @@ Run tests via ReliabilityKit:
 make run
 ```
 
+The default e2e suite targets `https://practicesoftwaretesting.com` and currently contains 51 scenarios
+covering positive, negative, and edge cases.
+
+E2E tests follow a Page Object Model structure under `tests/e2e/` with separate `pages/`, `components/`,
+`flows/`, `assertions/`, and `data/` modules to keep tests DRY and maintainable.
+
+See `CONTRIBUTING.md` for the e2e architecture checklist and guardrails.
+
 Run chaos profiles:
 
 ```bash
@@ -44,3 +65,17 @@ All run outputs are written to `.reliabilitykit/` by default.
 ## CI Notes
 
 Run records automatically include basic CI metadata when `CI` or `GITHUB_ACTIONS` is present.
+
+- PR CI: `.github/workflows/ci.yml` runs unit tests on pull requests.
+- Scheduled CI: `.github/workflows/ci-scheduled.yml` runs unit tests + full Playwright e2e daily.
+
+## Current Test Layout
+
+- Unit tests: `tests/unit/` (includes golden snapshots and e2e architecture guardrails)
+- E2E tests: `tests/e2e/tests/` (POM-driven, 51 scenarios)
+- POM layers:
+  - `tests/e2e/pages/`
+  - `tests/e2e/components/`
+  - `tests/e2e/flows/`
+  - `tests/e2e/assertions/`
+  - `tests/e2e/data/`
