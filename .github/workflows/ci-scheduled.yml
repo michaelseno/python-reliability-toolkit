@@ -2,7 +2,7 @@ name: CI Scheduled
 
 on:
   schedule:
-    - cron: "0 2 * * *"
+    - cron: "0 0,5,10,15,20 * * *"
   workflow_dispatch:
 
 jobs:
@@ -28,15 +28,51 @@ jobs:
       - name: Install Playwright Chromium
         run: python -m playwright install --with-deps chromium
 
-      - name: Run e2e Playwright tests
-        run: python -m pytest tests/e2e
+      - name: Decide chaos campaign
+        id: chaos_decision
+        shell: bash
+        run: |
+          roll=$((RANDOM % 100))
+          if [ "$roll" -lt 30 ]; then
+            enable=true
+            profiles=(latency_light checkout_fault)
+            pick=$((RANDOM % ${#profiles[@]}))
+            profile="${profiles[$pick]}"
+            seed=$((RANDOM + 1))
+          else
+            enable=false
+            profile=""
+            seed=""
+          fi
 
-      - name: Upload e2e artifacts on failure
-        if: failure()
+          echo "enable=$enable" >> "$GITHUB_OUTPUT"
+          echo "profile=$profile" >> "$GITHUB_OUTPUT"
+          echo "seed=$seed" >> "$GITHUB_OUTPUT"
+
+      - name: Run baseline reliability campaign
+        run: python -m reliabilitykit.cli.main run --workers 2 -- tests/e2e -v
+
+      - name: Run chaos reliability campaign (chaos-marked tests)
+        if: steps.chaos_decision.outputs.enable == 'true'
+        continue-on-error: true
+        run: |
+          python -m reliabilitykit.cli.main run \
+            --workers 2 \
+            --chaos "${{ steps.chaos_decision.outputs.profile }}" \
+            --seed "${{ steps.chaos_decision.outputs.seed }}" \
+            -- tests/e2e -m chaos -v
+
+      - name: Generate trend report
+        if: always()
+        run: python -m reliabilitykit.cli.main trend --window-days 30
+
+      - name: Upload reliability artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-artifacts-${{ github.run_id }}
+          name: reliability-artifacts-${{ github.run_id }}
           path: |
+            .reliabilitykit/
             artifacts/
             .pytest_cache/
           if-no-files-found: ignore

@@ -36,3 +36,5 @@ def run_tests(
     typer.echo(f"Run complete: {run.run_id}")
     typer.echo(f"Status: {run.status} | Failed: {run.totals['failed']}")
     typer.echo(f"Output root: {run_dir}")
+    if run.status != "passed":
+        raise typer.Exit(code=1)
