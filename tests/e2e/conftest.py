@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 import pytest
-from playwright.async_api import Browser, BrowserContext, Page, async_playwright
+from playwright.async_api import Browser, BrowserContext, Page, Route, async_playwright
 
 from reliabilitykit.chaos.injector import attach_chaos_routes
 from reliabilitykit.core.config import load_config
@@ -33,7 +33,18 @@ async def browser() -> AsyncIterator[Browser]:
 
 @pytest.fixture
 async def context(browser: Browser, request: pytest.FixtureRequest, rk_context: dict) -> AsyncIterator[BrowserContext]:
-    ctx = await browser.new_context()
+    ctx = await browser.new_context(
+        user_agent=(
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+        )
+    )
+
+    async def _drop_bot_challenge(route: Route) -> None:
+        await route.abort()
+
+    await ctx.route("**/cdn-cgi/challenge-platform/**", _drop_bot_challenge)
+    await ctx.route("https://static.cloudflareinsights.com/**", _drop_bot_challenge)
     marker = request.node.get_closest_marker("chaos")
     env_profile = os.getenv("RK_CHAOS_PROFILE")
     env_seed = os.getenv("RK_CHAOS_SEED")

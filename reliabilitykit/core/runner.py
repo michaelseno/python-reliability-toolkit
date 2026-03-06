@@ -25,6 +25,7 @@ def execute_pytest_run(
     chaos_profile: str | None = None,
     chaos_seed: int | None = None,
     browser: str = "chromium",
+    workers: str | None = None,
 ) -> RunRecord:
     started_at = datetime.now(UTC)
     run_id = create_run_id(started_at)
@@ -32,7 +33,10 @@ def execute_pytest_run(
     run_dir = storage.prepare_run_dir(run_id, started_at)
 
     plugin = ReliabilityPytestPlugin(run_dir=run_dir, browser=browser)
-    args = [*config.pytest.args, *pytest_args]
+    args = [*config.pytest.args]
+    if workers:
+        args.extend(["-n", workers])
+    args.extend(pytest_args)
 
     prior_profile = os.environ.get("RK_CHAOS_PROFILE")
     prior_seed = os.environ.get("RK_CHAOS_SEED")

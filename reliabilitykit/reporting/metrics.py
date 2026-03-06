@@ -109,6 +109,7 @@ def build_trend_metrics(runs: list[RunRecord]) -> dict:
     for run in runs:
         total = len(run.tests)
         run_pass_rate = _round((run.totals["passed"] / total) * 100) if total else 0.0
+        date_path = run.started_at.strftime("%Y/%m/%d")
         series.append(
             {
                 "run_id": run.run_id,
@@ -118,6 +119,8 @@ def build_trend_metrics(runs: list[RunRecord]) -> dict:
                 "failed": run.totals["failed"],
                 "pass_rate": run_pass_rate,
                 "chaos_profile": run.chaos_profile or "none",
+                "report_path": f"runs/{date_path}/{run.run_id}/report.html",
+                "run_json_path": f"runs/{date_path}/{run.run_id}/run.json",
             }
         )
 

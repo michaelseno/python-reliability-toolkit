@@ -1,7 +1,8 @@
 PYTHON := .venv/bin/python
 PLAYWRIGHT_DOWNLOAD_HOST ?= https://playwright.azureedge.net
+RUN_PYTEST_ARGS ?= -v
 
-.PHONY: venv install browsers test test-unit test-guardrails test-e2e run run-chaos-latency run-chaos-fault inspect trend report
+.PHONY: venv install browsers test test-unit test-guardrails test-e2e run run-serial run-chaos-latency run-chaos-fault inspect trend report
 
 venv:
 	uv venv
@@ -24,6 +25,9 @@ test-e2e:
 	$(PYTHON) -m pytest tests/e2e
 
 run:
+	$(PYTHON) -m reliabilitykit.cli.main run --workers auto -- tests/e2e $(RUN_PYTEST_ARGS)
+
+run-serial:
 	$(PYTHON) -m reliabilitykit.cli.main run -- tests/e2e
 
 run-chaos-latency:

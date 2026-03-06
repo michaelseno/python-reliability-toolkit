@@ -37,6 +37,9 @@ Run tests via ReliabilityKit:
 make run
 ```
 
+`make run` executes e2e with pytest-xdist (`--workers auto`) for parallelism.
+Use `make run-serial` if you need deterministic single-worker execution.
+
 The default e2e suite targets `https://practicesoftwaretesting.com` and currently contains 51 scenarios
 covering positive, negative, and edge cases.
 
@@ -50,6 +53,13 @@ Run chaos profiles:
 ```bash
 make run-chaos-latency
 make run-chaos-fault
+```
+
+You can also control workers directly:
+
+```bash
+python -m reliabilitykit.cli.main run --workers 4 -- tests/e2e
+python -m reliabilitykit.cli.main run --workers auto -- tests/e2e
 ```
 
 Inspect and report:
