@@ -1,44 +1,160 @@
+
 <!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
     <title>ReliabilityKit Run 20260303T120000Z-golden01</title>
     <style>
-      body { font-family: ui-sans-serif, sans-serif; margin: 24px; }
-      table { border-collapse: collapse; width: 100%; }
-      th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-      th { background: #f5f5f5; }
+      :root {
+        --bg: #f6f8fb;
+        --card: #ffffff;
+        --text: #1f2937;
+        --muted: #64748b;
+        --ok-bg: #dcfce7;
+        --ok-text: #166534;
+        --bad-bg: #fee2e2;
+        --bad-text: #991b1b;
+        --warn-bg: #fef3c7;
+        --warn-text: #92400e;
+        --border: #e5e7eb;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+      }
+      .container { max-width: 1200px; margin: 24px auto; padding: 0 16px; }
+      .hero { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+      .title { margin: 0 0 8px 0; }
+      .meta { color: var(--muted); margin: 0; }
+      .grid { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 12px; margin-top: 16px; }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+      .label { margin: 0; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+      .value { margin: 6px 0 0 0; font-size: 20px; font-weight: 700; }
+      .section { margin-top: 16px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border-bottom: 1px solid var(--border); text-align: left; padding: 8px; vertical-align: top; }
+      th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+      .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+      .ok { background: var(--ok-bg); color: var(--ok-text); }
+      .bad { background: var(--bad-bg); color: var(--bad-text); }
+      .warn { background: var(--warn-bg); color: var(--warn-text); }
+      .muted { color: var(--muted); }
+      details { margin: 0; }
+      summary { cursor: pointer; color: var(--muted); }
+      .list-inline { margin: 0; padding-left: 18px; }
     </style>
   </head>
   <body>
-    <h1>Run 20260303T120000Z-golden01</h1>
-    <p>Status: <strong>failed</strong> | Duration: 12000 ms</p>
-    <p>Project: reliability-toolkit | Started: 2026-03-03 12:00:00+00:00</p>
-    <h2>Totals</h2>
-    <ul>
-      <li>Passed: 1</li>
-      <li>Failed: 1</li>
-      <li>Skipped: 0</li>
-    </ul>
-    <h2>Tests</h2>
-    <table>
-      <thead>
-        <tr><th>NodeID</th><th>Status</th><th>Failure Type</th><th>Duration (ms)</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>tests/e2e/test_file.py::test_ok</td>
-          <td>passed</td>
-          <td>unknown</td>
-          <td>200</td>
-        </tr>
-        <tr>
-          <td>tests/e2e/test_file.py::test_fail</td>
-          <td>failed</td>
-          <td>assertion_failure</td>
-          <td>500</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="container">
+      <section class="hero">
+        <h1 class="title">Run 20260303T120000Z-golden01</h1>
+        <p class="meta">Project: reliability-toolkit | Started: 2026-03-03 12:00:00+00:00 | Ended: 2026-03-03 12:00:12+00:00</p>
+      </section>
+
+      <section class="grid">
+        <article class="card"><p class="label">Status</p><p class="value"><span class="badge bad">failed</span></p></article>
+        <article class="card"><p class="label">Pass Rate</p><p class="value">50.0%</p></article>
+        <article class="card"><p class="label">Duration</p><p class="value">12000 ms</p></article>
+        <article class="card"><p class="label">Failed Tests</p><p class="value">1</p></article>
+        <article class="card"><p class="label">Artifacts</p><p class="value">0</p></article>
+        <article class="card"><p class="label">Chaos</p><p class="value">checkout_fault</p></article>
+      </section>
+
+      <section class="section">
+        <h2>Failure Distribution</h2>
+        
+        <ul class="list-inline">
+          
+          <li><span class="badge bad">assertion_failure</span> 1</li>
+          
+        </ul>
+        
+      </section>
+
+      <section class="section">
+        <h2>Top Slow Tests</h2>
+        <table>
+          <thead>
+            <tr><th>NodeID</th><th>Status</th><th>Duration</th></tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td>tests/e2e/test_file.py::test_fail</td>
+              <td><span class="badge bad">failed</span></td>
+              <td>500 ms</td>
+            </tr>
+            
+            <tr>
+              <td>tests/e2e/test_file.py::test_ok</td>
+              <td><span class="badge ok">passed</span></td>
+              <td>200 ms</td>
+            </tr>
+            
+          </tbody>
+        </table>
+      </section>
+
+      <section class="section">
+        <h2>Tests</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>NodeID</th>
+              <th>Status</th>
+              <th>Failure Type</th>
+              <th>Duration</th>
+              <th>Error</th>
+              <th>Artifacts</th>
+              <th>Chaos Events</th>
+            </tr>
+          </thead>
+          <tbody>
+          
+            <tr>
+              <td>tests/e2e/test_file.py::test_ok</td>
+              <td><span class="badge ok">passed</span></td>
+              <td>unknown</td>
+              <td>200 ms</td>
+              <td>
+                
+                <span class="muted">-</span>
+                
+              </td>
+              <td>
+                
+                <span class="muted">none</span>
+                
+              </td>
+              <td>0</td>
+            </tr>
+          
+            <tr>
+              <td>tests/e2e/test_file.py::test_fail</td>
+              <td><span class="badge bad">failed</span></td>
+              <td>assertion_failure</td>
+              <td>500 ms</td>
+              <td>
+                
+                <details>
+                  <summary>view</summary>
+                  <pre>AssertionError: expected value</pre>
+                </details>
+                
+              </td>
+              <td>
+                
+                <span class="muted">none</span>
+                
+              </td>
+              <td>0</td>
+            </tr>
+          
+          </tbody>
+        </table>
+      </section>
+    </div>
   </body>
 </html>

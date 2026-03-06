@@ -6,32 +6,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  unit-tests:
-    name: Unit Tests (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12", "3.13"]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Install dependencies
-        run: uv pip install --system -e .
-
-      - name: Run unit tests
-        run: python -m pytest tests/unit
-
   e2e-playwright:
     name: E2E Playwright (Python 3.13)
     runs-on: ubuntu-latest
@@ -52,9 +26,7 @@ jobs:
         run: uv pip install --system -e .
 
       - name: Install Playwright Chromium
-        env:
-          PLAYWRIGHT_DOWNLOAD_HOST: https://playwright.azureedge.net
-        run: python -m playwright install chromium
+        run: python -m playwright install --with-deps chromium
 
       - name: Run e2e Playwright tests
         run: python -m pytest tests/e2e

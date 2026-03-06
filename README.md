@@ -67,7 +67,7 @@ All run outputs are written to `.reliabilitykit/` by default.
 Run records automatically include basic CI metadata when `CI` or `GITHUB_ACTIONS` is present.
 
 - PR CI: `.github/workflows/ci.yml` runs unit tests on pull requests.
-- Scheduled CI: `.github/workflows/ci-scheduled.yml` runs unit tests + full Playwright e2e daily.
+- Scheduled CI: `.github/workflows/ci-scheduled.yml` runs full Playwright e2e daily.
 
 ## Current Test Layout
 

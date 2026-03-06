@@ -12,7 +12,7 @@ dependencies = [
   "pydantic>=2.7",
   "pytest>=8.2",
   "pytest-asyncio>=0.23",
-  "playwright>=1.52",
+  "playwright==1.52.0",
   "typer>=0.12",
   "PyYAML>=6.0",
   "Jinja2>=3.1",
