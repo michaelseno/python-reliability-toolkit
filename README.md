@@ -17,6 +17,17 @@ and HTML reports so every run becomes analyzable data.
 - **Quality gates:** unit tests, golden snapshot tests, architecture guardrails, PR CI, and scheduled CI
 - **Next milestones:** richer trend analytics, expanded failure classification, and production-ready S3 backend
 
+## Documentation
+
+- Docs index: `docs/README.md`
+- Contributing guide: `docs/contributing.md`
+- Scheduled CI workflow: `docs/ci-scheduled-workflow.md`
+- Dashboard operations: `docs/dashboard-operations.md`
+- Seed strategy: `docs/seed-strategy.md`
+- S3 architecture plan: `docs/s3-architecture-plan.md`
+
+Root-level UPPER_SNAKE_CASE files are compatibility stubs that point to canonical docs in `docs/`.
+
 ## Quickstart (uv + venv)
 
 ```bash
@@ -53,7 +64,7 @@ covering positive, negative, and edge cases.
 E2E tests follow a Page Object Model structure under `tests/e2e/` with separate `pages/`, `components/`,
 `flows/`, `assertions/`, and `data/` modules to keep tests DRY and maintainable.
 
-See `CONTRIBUTING.md` for the e2e architecture checklist and guardrails.
+See `docs/contributing.md` for the e2e architecture checklist and guardrails.
 
 Run chaos profiles:
 
