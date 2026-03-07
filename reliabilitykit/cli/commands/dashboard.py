@@ -3,30 +3,34 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+import webbrowser
 
 import typer
 
 from reliabilitykit.core.config import load_config
 from reliabilitykit.core.models import RunRecord
-from reliabilitykit.reporting.html_trend import write_trend_report
+from reliabilitykit.reporting.html_dashboard import write_dashboard_report
 from reliabilitykit.storage.local import LocalStorageBackend
 
 
-def trend_report(
+def dashboard_report(
     config: str = typer.Option("reliabilitykit.yaml", help="Path to config file"),
     window_days: int | None = typer.Option(
         None,
         help="Trend lookback window in days (defaults to config.reporting.trend_default_window_days)",
     ),
+    output: str | None = typer.Option(None, help="Output HTML path (defaults to <storage>/dashboard.html)"),
+    open_browser: bool = typer.Option(False, "--open", help="Open the generated dashboard in browser"),
 ) -> None:
-    """Render historical trend HTML report.
+    """Generate unified reliability dashboard.
 
-    This view focuses on multi-run analytics only. For a single unified view that
-    combines trends and latest run details, use `reliabilitykit dashboard`.
+    Includes latest run triage, historical trends, chaos-vs-baseline split,
+    and on-demand loading of run.json details from the run history table.
 
     Examples:
-    - reliabilitykit trend
-    - reliabilitykit trend --window-days 30
+    - reliabilitykit dashboard
+    - reliabilitykit dashboard --window-days 30
+    - reliabilitykit dashboard --open
     """
 
     cfg = load_config(config)
@@ -42,6 +46,16 @@ def trend_report(
             runs.append(run)
 
     runs.sort(key=lambda r: r.started_at)
-    output = Path(cfg.storage.local.path) / "trend.html"
-    write_trend_report(runs, output)
-    typer.echo(f"Trend report generated: {output}")
+
+    if output:
+        output_path = Path(output)
+    else:
+        output_path = Path(cfg.storage.local.path) / "dashboard.html"
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_dashboard_report(runs, output_path)
+    typer.echo(f"Dashboard generated: {output_path}")
+
+    if open_browser:
+        webbrowser.open(output_path.resolve().as_uri())
+        typer.echo("Opened dashboard in browser.")

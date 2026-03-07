@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from reliabilitykit.core.models import RunEnvironment, RunRecord, TestRecord as RKTestRecord
+from reliabilitykit.reporting.html_dashboard import write_dashboard_report
 from reliabilitykit.reporting.html_run import write_run_report
 from reliabilitykit.reporting.html_trend import write_trend_report
 from reliabilitykit.reporting.json_writer import write_json
@@ -93,4 +94,14 @@ def test_trend_html_matches_golden(tmp_path: Path) -> None:
 
     actual = _normalize_html(out.read_text(encoding="utf-8"))
     expected = _normalize_html(_golden_path("trend_report.html").read_text(encoding="utf-8"))
+    assert actual == expected
+
+
+def test_dashboard_html_matches_golden(tmp_path: Path) -> None:
+    run = _sample_run()
+    out = tmp_path / "dashboard.html"
+    write_dashboard_report([run], out)
+
+    actual = _normalize_html(out.read_text(encoding="utf-8"))
+    expected = _normalize_html(_golden_path("dashboard_report.html").read_text(encoding="utf-8"))
     assert actual == expected

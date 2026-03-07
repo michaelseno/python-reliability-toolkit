@@ -1,0 +1,466 @@
+
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ReliabilityKit Dashboard</title>
+    <style>
+      :root {
+        --bg: #f4f6fb;
+        --bg-accent: #def2ff;
+        --card: #ffffff;
+        --line: #d9e1ef;
+        --text: #10213d;
+        --muted: #5a6f8d;
+        --brand: #0f62fe;
+        --ok: #146542;
+        --bad: #9a2229;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        color: var(--text);
+        font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(1300px 440px at 8% -8%, var(--bg-accent), transparent 48%),
+          linear-gradient(180deg, #f8fbff 0%, var(--bg) 42%, var(--bg) 100%);
+      }
+
+      .container {
+        max-width: 1280px;
+        margin: 24px auto;
+        padding: 0 16px 24px;
+      }
+
+      .hero,
+      .section,
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+      }
+
+      .hero {
+        padding: 18px;
+        background: linear-gradient(120deg, #fff 0%, #f4f8ff 45%, #fff 100%);
+      }
+
+      .hero h1 {
+        margin: 0;
+        font-size: clamp(22px, 2.6vw, 34px);
+      }
+
+      .small {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .grid {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: repeat(6, minmax(120px, 1fr));
+        gap: 10px;
+      }
+
+      .card {
+        padding: 10px 12px;
+      }
+
+      .label {
+        margin: 0;
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+      }
+
+      .value {
+        margin: 8px 0 0;
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      .section {
+        margin-top: 14px;
+        padding: 14px;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .pill {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 3px 10px;
+        background: #dbe7ff;
+        color: var(--brand);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .table-wrap {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        padding: 9px 8px;
+        font-size: 13px;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+      }
+
+      .status-pass,
+      .status-fail {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .status-pass { background: #e7faef; color: var(--ok); }
+      .status-fail { background: #ffe9ea; color: var(--bad); }
+
+      .btn {
+        border: 1px solid #b8c9e8;
+        border-radius: 8px;
+        background: #edf3ff;
+        color: #12366f;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 8px;
+        cursor: pointer;
+      }
+
+      .btn:hover { background: #dfebff; }
+
+      .split {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr;
+        gap: 10px;
+      }
+
+      .kv {
+        margin: 8px 0 0;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(120px, 1fr));
+        gap: 8px;
+      }
+
+      .kv .card { padding: 10px; }
+
+      .list {
+        margin: 8px 0 0;
+        padding-left: 18px;
+      }
+
+      .muted { color: var(--muted); }
+      .ok { color: var(--ok); }
+      .bad { color: var(--bad); }
+
+      pre {
+        margin: 8px 0 0;
+        max-height: 200px;
+        overflow: auto;
+        border-radius: 8px;
+        padding: 10px;
+        background: #122137;
+        color: #e7eefc;
+        font-size: 12px;
+        font-family: "JetBrains Mono", "SF Mono", "Menlo", monospace;
+      }
+
+      .warn {
+        margin-top: 8px;
+        color: #8a5b12;
+        background: #fff3dc;
+        border: 1px solid #f1d9ab;
+        border-radius: 8px;
+        padding: 8px;
+        font-size: 12px;
+      }
+
+      @media (max-width: 1040px) {
+        .grid { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+        .split { grid-template-columns: 1fr; }
+      }
+
+      @media (max-width: 680px) {
+        .grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+        .kv { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+      }
+
+      @media (max-width: 520px) {
+        .grid,
+        .kv { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <section class="hero">
+        <h1>Reliability Dashboard</h1>
+        <p class="small">Unified latest-run triage + historical reliability context for 1 runs.</p>
+      </section>
+
+      <section class="grid">
+        <article class="card"><p class="label">Window Pass Rate</p><p class="value">0.0%</p></article>
+        <article class="card"><p class="label">Window Reliability</p><p class="value">46.0%</p></article>
+        <article class="card"><p class="label">Runs</p><p class="value">1</p></article>
+        <article class="card"><p class="label">P50 Duration</p><p class="value">12000 ms</p></article>
+        <article class="card"><p class="label">P95 Duration</p><p class="value">12000 ms</p></article>
+        <article class="card"><p class="label">Chaos Pass Rate</p><p class="value">0.0%</p></article>
+        <article class="card"><p class="label">Baseline Pass Rate</p><p class="value">0.0%</p></article>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>Selected Run</h2>
+          <span class="pill">Load any run below</span>
+        </div>
+        <p class="small" id="selected-meta">No run selected.</p>
+        <div class="kv">
+          <article class="card"><p class="label">Status</p><p class="value" id="selected-status">-</p></article>
+          <article class="card"><p class="label">Pass Rate</p><p class="value" id="selected-pass-rate">-</p></article>
+          <article class="card"><p class="label">Reliability</p><p class="value" id="selected-reliability">-</p></article>
+          <article class="card"><p class="label">Duration</p><p class="value" id="selected-duration">-</p></article>
+          <article class="card"><p class="label">Total Tests</p><p class="value" id="selected-total">-</p></article>
+          <article class="card"><p class="label">Failed</p><p class="value" id="selected-failed">-</p></article>
+          <article class="card"><p class="label">Chaos Profile</p><p class="value" id="selected-chaos">-</p></article>
+        </div>
+        <div id="fetch-warn"></div>
+        <div class="split">
+          <article class="card">
+            <p class="label">Failure Type Distribution</p>
+            <ul class="list" id="selected-failure-types"><li class="muted">none</li></ul>
+          </article>
+          <article class="card">
+            <p class="label">Failed Tests</p>
+            <ul class="list" id="selected-failed-tests"><li class="muted">none</li></ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>Least Reliable Tests (Window)</h2>
+          <span class="pill">Reliability Engine</span>
+        </div>
+        
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Test</th><th>Reliability</th><th>Pass Rate</th><th>Flake Rate</th><th>Chaos Sensitivity</th><th>Failure Diversity</th></tr></thead>
+            <tbody>
+            
+              <tr>
+                <td>tests/e2e/test_file.py::test_fail</td>
+                <td>20.0%</td>
+                <td>0.0%</td>
+                <td>0.0%</td>
+                <td>100.0%</td>
+                <td>1</td>
+              </tr>
+            
+              <tr>
+                <td>tests/e2e/test_file.py::test_ok</td>
+                <td>100.0%</td>
+                <td>100.0%</td>
+                <td>0.0%</td>
+                <td>0.0%</td>
+                <td>0</td>
+              </tr>
+            
+            </tbody>
+          </table>
+        </div>
+        
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>Window Failure Type Distribution</h2>
+          <span class="pill">Classifier</span>
+        </div>
+        
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Failure Type</th><th>Count</th></tr></thead>
+            <tbody>
+            
+              <tr><td>assertion_failure</td><td>1</td></tr>
+            
+            </tbody>
+          </table>
+        </div>
+        
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>Top Failing Tests (Window)</h2>
+          <span class="pill">Hotspots</span>
+        </div>
+        
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Test</th><th>Failures</th></tr></thead>
+            <tbody>
+            
+              <tr><td>tests/e2e/test_file.py::test_fail</td><td>1</td></tr>
+            
+            </tbody>
+          </table>
+        </div>
+        
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>Run History</h2>
+          <span class="pill">Latest 1</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Run ID</th><th>Status</th><th>Duration (ms)</th><th>Failed</th><th>Pass Rate</th><th>Reliability</th><th>Chaos</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+            
+              <tr>
+                <td>20260303T120000Z-golden01</td>
+                <td><span class="status-fail">failed</span></td>
+                <td>12000</td>
+                <td>1</td>
+                <td>50.0%</td>
+                <td>46.0%</td>
+                <td>checkout_fault</td>
+                <td><button class="btn" data-run-json="runs/2026/03/03/20260303T120000Z-golden01/run.json">Load</button></td>
+              </tr>
+            
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const trendData = {"run_count": 1, "pass_rate": 0.0, "run_reliability_avg": 46.0, "p50_duration_ms": 12000, "p95_duration_ms": 12000, "median_duration_ms": 12000, "failure_distribution": {"assertion_failure": 1}, "top_failing_tests": [["tests/e2e/test_file.py::test_fail", 1]], "top_reliability_risks": [{"nodeid": "tests/e2e/test_file.py::test_fail", "executions": 1, "passes": 0, "fails": 1, "pass_rate": 0.0, "fail_rate": 100.0, "flake_rate": 0.0, "chaos_fail_rate": 100.0, "baseline_fail_rate": 0.0, "chaos_sensitivity": 100.0, "duration_cv": 0.0, "failure_diversity": 1, "failure_types": ["assertion_failure"], "reliability_score": 20.0}, {"nodeid": "tests/e2e/test_file.py::test_ok", "executions": 1, "passes": 1, "fails": 0, "pass_rate": 100.0, "fail_rate": 0.0, "flake_rate": 0.0, "chaos_fail_rate": 0.0, "baseline_fail_rate": 0.0, "chaos_sensitivity": 0.0, "duration_cv": 0.0, "failure_diversity": 0, "failure_types": [], "reliability_score": 100.0}], "test_reliability": [{"nodeid": "tests/e2e/test_file.py::test_fail", "executions": 1, "passes": 0, "fails": 1, "pass_rate": 0.0, "fail_rate": 100.0, "flake_rate": 0.0, "chaos_fail_rate": 100.0, "baseline_fail_rate": 0.0, "chaos_sensitivity": 100.0, "duration_cv": 0.0, "failure_diversity": 1, "failure_types": ["assertion_failure"], "reliability_score": 20.0}, {"nodeid": "tests/e2e/test_file.py::test_ok", "executions": 1, "passes": 1, "fails": 0, "pass_rate": 100.0, "fail_rate": 0.0, "flake_rate": 0.0, "chaos_fail_rate": 0.0, "baseline_fail_rate": 0.0, "chaos_sensitivity": 0.0, "duration_cv": 0.0, "failure_diversity": 0, "failure_types": [], "reliability_score": 100.0}], "chaos_summary": {"chaos": {"runs": 1, "passed": 0, "failed": 1, "pass_rate": 0.0}, "baseline": {"runs": 0, "passed": 0, "failed": 0, "pass_rate": 0.0}}, "series": [{"run_id": "20260303T120000Z-golden01", "started_at": "2026-03-03T12:00:00+00:00", "status": "failed", "duration_ms": 12000, "failed": 1, "pass_rate": 50.0, "run_reliability_score": 46.0, "chaos_profile": "checkout_fault", "report_path": "runs/2026/03/03/20260303T120000Z-golden01/report.html", "run_json_path": "runs/2026/03/03/20260303T120000Z-golden01/run.json"}]};
+      const initialRun = {"schema_version": "1.0", "run_id": "20260303T120000Z-golden01", "project": "reliability-toolkit", "started_at": "2026-03-03T12:00:00Z", "ended_at": "2026-03-03T12:00:12Z", "duration_ms": 12000, "status": "failed", "environment": {"os": "Darwin 24.3.0", "python_version": "3.13.2", "playwright_version": null, "pytest_version": "9.0.2", "git_sha": null, "branch": null, "host": "dev-machine", "is_ci": false, "ci_provider": null, "ci_run_id": null, "ci_job_id": null, "ci_job_url": null}, "chaos_profile": "checkout_fault", "chaos_seed": 7, "tests": [{"nodeid": "tests/e2e/test_file.py::test_ok", "name": "test_ok", "status": "passed", "started_at": "2026-03-03T12:00:00Z", "ended_at": "2026-03-03T12:00:00Z", "duration_ms": 200, "browser": "chromium", "retry_index": 0, "error_message": null, "failure_type": "unknown", "classification_confidence": 0.0, "artifacts": [], "chaos_events": []}, {"nodeid": "tests/e2e/test_file.py::test_fail", "name": "test_fail", "status": "failed", "started_at": "2026-03-03T12:00:00Z", "ended_at": "2026-03-03T12:00:12Z", "duration_ms": 500, "browser": "chromium", "retry_index": 0, "error_message": "AssertionError: expected value", "failure_type": "assertion_failure", "classification_confidence": 0.9, "artifacts": [], "chaos_events": []}]};
+      const runReliabilityById = new Map((trendData.series || []).map((row) => [row.run_id, row.run_reliability_score]));
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function summarizeRun(run) {
+        const tests = Array.isArray(run.tests) ? run.tests : [];
+        const total = tests.length;
+        const failed = tests.filter((t) => t.status === "failed");
+        const passed = tests.filter((t) => t.status === "passed").length;
+        const passRate = total ? ((passed / total) * 100).toFixed(2) : "0.00";
+
+        const distribution = {};
+        for (const test of failed) {
+          const key = test.failure_type || "unknown";
+          distribution[key] = (distribution[key] || 0) + 1;
+        }
+
+        return { total, failed, passRate, distribution };
+      }
+
+      function renderRun(run) {
+        if (!run) {
+          return;
+        }
+
+        const summary = summarizeRun(run);
+        document.getElementById("selected-meta").textContent = `${run.run_id} | started ${run.started_at} | ended ${run.ended_at}`;
+        document.getElementById("selected-status").textContent = run.status || "-";
+        document.getElementById("selected-pass-rate").textContent = `${summary.passRate}%`;
+        const runReliability = runReliabilityById.get(run.run_id);
+        document.getElementById("selected-reliability").textContent = runReliability !== undefined ? `${runReliability}%` : "-";
+        document.getElementById("selected-duration").textContent = `${run.duration_ms || 0} ms`;
+        document.getElementById("selected-total").textContent = String(summary.total);
+        document.getElementById("selected-failed").textContent = String(summary.failed.length);
+        document.getElementById("selected-chaos").textContent = run.chaos_profile || "none";
+
+        const distEl = document.getElementById("selected-failure-types");
+        const distEntries = Object.entries(summary.distribution).sort((a, b) => b[1] - a[1]);
+        distEl.innerHTML = distEntries.length
+          ? distEntries.map(([name, count]) => `<li>${escapeHtml(name)}: ${count}</li>`).join("")
+          : '<li class="muted">none</li>';
+
+        const failedEl = document.getElementById("selected-failed-tests");
+        failedEl.innerHTML = summary.failed.length
+          ? summary.failed.slice(0, 10).map((test) => {
+              const confidence = typeof test.classification_confidence === "number"
+                ? ` (confidence ${test.classification_confidence.toFixed(2)})`
+                : "";
+              const error = test.error_message ? `<pre>${escapeHtml(String(test.error_message).slice(0, 600))}</pre>` : "";
+              return `<li><strong>${escapeHtml(test.nodeid)}</strong> - ${escapeHtml(test.failure_type || "unknown")}${confidence}${error}</li>`;
+            }).join("")
+          : '<li class="muted">none</li>';
+
+        document.getElementById("fetch-warn").innerHTML = "";
+      }
+
+      async function loadRun(path) {
+        try {
+          const response = await fetch(path);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          const run = await response.json();
+          renderRun(run);
+        } catch (err) {
+          document.getElementById("fetch-warn").innerHTML =
+            '<div class="warn">Could not load run.json on demand. If opening this file directly, serve the storage root with an HTTP server (for example: <code>python -m http.server -d .reliabilitykit 8000</code>) and open <code>http://localhost:8000/dashboard.html</code>.</div>';
+        }
+      }
+
+      for (const button of document.querySelectorAll("button[data-run-json]")) {
+        button.addEventListener("click", () => loadRun(button.dataset.runJson));
+      }
+
+      if (initialRun) {
+        renderRun(initialRun);
+      }
+
+      window.__RK_DASHBOARD_DATA__ = trendData;
+    </script>
+  </body>
+</html>

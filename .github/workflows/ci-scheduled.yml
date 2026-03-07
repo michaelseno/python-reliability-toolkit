@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: "0 0,5,10,15,20 * * *"
   workflow_dispatch:
+    inputs:
+      seed_strategy:
+        description: "Seed strategy for chaos run (daily or fixed)"
+        required: false
+        default: daily
+        type: choice
+        options:
+          - daily
+          - fixed
 
 jobs:
   e2e-playwright:
@@ -33,27 +42,49 @@ jobs:
         shell: bash
         run: |
           roll=$((RANDOM % 100))
+          strategy="${{ github.event.inputs.seed_strategy || 'daily' }}"
+          day_seed=$(date -u +%Y%m%d)
           if [ "$roll" -lt 30 ]; then
             enable=true
             profiles=(latency_light checkout_fault)
             pick=$((RANDOM % ${#profiles[@]}))
             profile="${profiles[$pick]}"
-            seed=$((RANDOM + 1))
+            if [ "$strategy" = "fixed" ]; then
+              if [ "$profile" = "latency_light" ]; then
+                seed=21
+                make_target=run-chaos-ci-latency
+              else
+                seed=7
+                make_target=run-chaos-ci-fault
+              fi
+            else
+              checksum=$(printf "%s" "${day_seed}-${profile}" | cksum | cut -d' ' -f1)
+              seed=$((checksum % 100000 + 1))
+              make_target=""
+            fi
           else
             enable=false
             profile=""
             seed=""
+            make_target=""
           fi
 
           echo "enable=$enable" >> "$GITHUB_OUTPUT"
+          echo "strategy=$strategy" >> "$GITHUB_OUTPUT"
           echo "profile=$profile" >> "$GITHUB_OUTPUT"
           echo "seed=$seed" >> "$GITHUB_OUTPUT"
+          echo "make_target=$make_target" >> "$GITHUB_OUTPUT"
 
       - name: Run baseline reliability campaign
         run: python -m reliabilitykit.cli.main run --workers 2 -- tests/e2e -v
 
-      - name: Run chaos reliability campaign (chaos-marked tests)
-        if: steps.chaos_decision.outputs.enable == 'true'
+      - name: Run chaos reliability campaign (fixed-seed lane)
+        if: steps.chaos_decision.outputs.enable == 'true' && steps.chaos_decision.outputs.strategy == 'fixed'
+        continue-on-error: true
+        run: make ${{ steps.chaos_decision.outputs.make_target }}
+
+      - name: Run chaos reliability campaign (daily deterministic lane)
+        if: steps.chaos_decision.outputs.enable == 'true' && steps.chaos_decision.outputs.strategy == 'daily'
         continue-on-error: true
         run: |
           python -m reliabilitykit.cli.main run \

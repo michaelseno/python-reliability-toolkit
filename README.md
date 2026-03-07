@@ -40,6 +40,13 @@ make run
 `make run` executes e2e with pytest-xdist (`--workers auto`) for parallelism.
 Use `make run-serial` if you need deterministic single-worker execution.
 
+You can pass chaos and repeat options directly through `make run`:
+
+```bash
+make run RUN_CHAOS=latency_light RUN_SEED=21
+make run RUN_REPEAT=5 RUN_PYTEST_ARGS="-m smoke -v"
+```
+
 The default e2e suite targets `https://practicesoftwaretesting.com` and currently contains 51 scenarios
 covering positive, negative, and edge cases.
 
@@ -51,9 +58,17 @@ See `CONTRIBUTING.md` for the e2e architecture checklist and guardrails.
 Run chaos profiles:
 
 ```bash
+reliabilitykit chaos list
+reliabilitykit chaos show latency_light
+make chaos-profiles
+make chaos-show CHAOS_PROFILE=latency_light
 make run-chaos-latency
 make run-chaos-fault
+make run-chaos-ci-latency
+make run-chaos-ci-fault
 ```
+
+`run-chaos-ci-*` targets are fixed-seed CI lane commands for reproducible chaos triage.
 
 You can also control workers directly:
 
@@ -66,18 +81,107 @@ Inspect and report:
 
 ```bash
 make inspect
+make dashboard
 make trend
 make report RUN_ID=<run_id>
+make clean-data
 ```
 
+`make dashboard` is the primary report surface and combines latest-run triage with historical trends.
+`make trend` and `make report` remain available for focused legacy views.
+
 All run outputs are written to `.reliabilitykit/` by default.
+
+## CLI Usage
+
+ReliabilityKit ships with built-in command help via Typer:
+
+```bash
+reliabilitykit --help
+reliabilitykit run --help
+reliabilitykit dashboard --help
+```
+
+Common workflows:
+
+```bash
+# baseline run
+reliabilitykit run -- tests/e2e
+
+# chaos run
+reliabilitykit chaos list
+reliabilitykit chaos show latency_light
+reliabilitykit run --chaos latency_light --seed 21 -- tests/e2e -m chaos
+
+# inspect latest failed runs
+reliabilitykit inspect --status failed --last 20
+
+# inspect as JSON (includes run reliability score)
+reliabilitykit inspect --status failed --last 20 --json
+
+# unified dashboard (latest + trends)
+reliabilitykit dashboard --window-days 14
+
+# open dashboard automatically
+reliabilitykit dashboard --open
+
+# repeat full run N times regardless of pass/fail
+reliabilitykit run --repeat 5 -- tests/e2e -m smoke
+```
+
+Note: dashboard lazy-loads `run.json` from the run table. If you open dashboard from
+`file://`, browser fetch restrictions may block on-demand loading. Serve `.reliabilitykit/`
+locally and open dashboard via HTTP:
+
+```bash
+python -m http.server -d .reliabilitykit 8000
+# then open http://localhost:8000/dashboard.html
+```
+
+## Reliability Engine Signals
+
+Trend and dashboard views now include reliability scoring:
+
+- **Run reliability score** (0-100): weighted by run pass rate, test reliability history,
+  and failure severity, with extra penalty for chaos-run failures.
+- **Test reliability score** (0-100): weighted by historical pass rate, flake rate,
+  chaos sensitivity, and duration stability.
+- **Flake rate**: percentage of pass/fail status transitions for a test across executions.
+- **Chaos sensitivity**: additional failure rate under chaos vs baseline.
+- **Failure diversity**: count of distinct failure types seen for the same test.
+
+## Seed Convention
+
+Use a two-lane seed strategy so runs are both reproducible and exploratory:
+
+- **CI lane (fixed seeds):** use stable per-profile seeds for reproducible PR triage.
+  - `latency_light -> 21`
+  - `checkout_fault -> 7`
+  - Make targets: `run-chaos-ci-latency`, `run-chaos-ci-fault`
+- **Scheduled lane (rotating deterministic seeds):** use a date-based seed derived from
+  `YYYYMMDD + profile` so each day explores a new pattern, but reruns on the same day/profile
+  stay reproducible.
+- **Local debugging:** pin one seed while diagnosing (`--seed 21`), then vary seed values
+  for robustness sweeps (`--seed 22`, `--seed 23`, ...).
+
+Quick examples:
+
+```bash
+# reproducible CI-like run
+reliabilitykit run --chaos latency_light --seed 21 -- tests/e2e -m chaos
+
+# robustness sweep
+reliabilitykit run --chaos latency_light --seed 21 --repeat 3 -- tests/e2e -m chaos
+reliabilitykit run --chaos latency_light --seed 22 --repeat 3 -- tests/e2e -m chaos
+```
 
 ## CI Notes
 
 Run records automatically include basic CI metadata when `CI` or `GITHUB_ACTIONS` is present.
 
 - PR CI: `.github/workflows/ci.yml` runs unit tests on pull requests.
-- Scheduled CI: `.github/workflows/ci-scheduled.yml` runs full Playwright e2e daily.
+- Scheduled CI: `.github/workflows/ci-scheduled.yml` runs full Playwright e2e and supports
+  workflow dispatch seed strategy input (`daily` or `fixed`).
 
 ## Current Test Layout
 

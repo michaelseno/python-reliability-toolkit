@@ -15,6 +15,15 @@ def report_run(
     run_id: str = typer.Option(..., help="Run ID to render"),
     config: str = typer.Option("reliabilitykit.yaml", help="Path to config file"),
 ) -> None:
+    """Render a single-run HTML report from stored run.json.
+
+    This command is kept for focused deep dive on one run. For combined historical
+    context and latest-run triage, prefer `reliabilitykit dashboard`.
+
+    Examples:
+    - reliabilitykit report --run-id 20260303T120000Z-golden01
+    """
+
     cfg = load_config(config)
     storage = LocalStorageBackend(Path(cfg.storage.local.path))
     run_path = storage.find_run(run_id)

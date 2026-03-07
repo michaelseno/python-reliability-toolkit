@@ -60,6 +60,23 @@ def test_build_trend_metrics_chaos_summary_and_percentiles() -> None:
     assert metrics["run_count"] == 3
     assert metrics["pass_rate"] == 66.67
     assert metrics["p50_duration_ms"] == 2000
+    assert metrics["run_reliability_avg"] > 0
     assert metrics["chaos_summary"]["chaos"]["runs"] == 2
     assert metrics["chaos_summary"]["baseline"]["runs"] == 1
     assert metrics["top_failing_tests"][0][0].endswith("test_b")
+    assert metrics["series"][0]["run_reliability_score"] >= 0
+
+
+def test_build_trend_metrics_test_reliability_flake_rate() -> None:
+    runs = [
+        _run("r1", "passed", 1000),
+        _run("r2", "failed", 1000),
+        _run("r3", "passed", 1000),
+    ]
+    metrics = build_trend_metrics(runs)
+    reliability_row = next(row for row in metrics["test_reliability"] if row["nodeid"].endswith("test_b"))
+
+    assert reliability_row["executions"] == 3
+    assert reliability_row["pass_rate"] == 66.67
+    assert reliability_row["flake_rate"] == 100.0
+    assert reliability_row["reliability_score"] < 80.0
