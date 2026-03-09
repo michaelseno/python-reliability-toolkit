@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
+import hashlib
+import json
 import os
 from pathlib import Path
 
@@ -13,13 +16,47 @@ from reliabilitykit.core.config import load_config
 
 @pytest.fixture
 def rk_context(request: pytest.FixtureRequest) -> dict:
+    nodeid = request.node.nodeid
+
+    def _context_file(run_dir: str) -> Path:
+        key = hashlib.sha1(nodeid.encode("utf-8")).hexdigest()
+        context_dir = Path(run_dir) / ".runtime_context"
+        context_dir.mkdir(parents=True, exist_ok=True)
+        return context_dir / f"{key}.jsonl"
+
     try:
         return request.getfixturevalue("rk_test_context")
     except pytest.FixtureLookupError:
+        run_dir = os.getenv("RK_RUN_DIR", ".")
+
+        def add_artifact(kind: str, path: str, size_bytes: int = 0, sha256: str | None = None) -> None:
+            payload = {
+                "type": "artifact",
+                "kind": kind,
+                "path": path,
+                "size_bytes": size_bytes,
+                "sha256": sha256,
+            }
+            with _context_file(run_dir).open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(payload) + "\n")
+
+        def add_chaos_event(profile: str, mode: str, url: str, method: str, action: str) -> None:
+            payload = {
+                "type": "chaos_event",
+                "timestamp": datetime.now(UTC).isoformat(),
+                "profile": profile,
+                "mode": mode,
+                "url": url,
+                "method": method,
+                "action": action,
+            }
+            with _context_file(run_dir).open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(payload) + "\n")
+
         return {
-            "run_dir": ".",
-            "add_artifact": lambda *args, **kwargs: None,
-            "add_chaos_event": lambda *args, **kwargs: None,
+            "run_dir": run_dir,
+            "add_artifact": add_artifact,
+            "add_chaos_event": add_chaos_event,
         }
 
 
@@ -93,6 +130,6 @@ async def capture_page_artifact(
     screenshot = artifacts_dir / f"{safe}.png"
     try:
         await page.screenshot(path=str(screenshot), full_page=True)
-        rk_context["add_artifact"]("screenshot", str(screenshot))
+        rk_context["add_artifact"]("screenshot", str(screenshot.relative_to(run_dir)))
     except Exception:
         pass

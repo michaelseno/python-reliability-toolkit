@@ -44,6 +44,15 @@ chaos:
           url_pattern: "/users"
           methods: ["GET", "POST"]
           resource_types: ["document", "xhr", "fetch"]
+    fail_hard:
+      mode: abort
+      probability: 1.0
+      seed: 42
+      targets:
+        - host: api.practicesoftwaretesting.com
+          url_pattern: "/"
+          methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+          resource_types: ["document", "xhr", "fetch"]
 
 reporting:
   trend_default_window_days: 14

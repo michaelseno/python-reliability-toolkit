@@ -26,48 +26,43 @@ RUN_TEMPLATE = Template(
     <title>ReliabilityKit Run {{ run.run_id }}</title>
     <style>
       :root {
-        --bg: #f3f5f9;
-        --bg-accent: #e8f0ff;
-        --card: #ffffff;
-        --card-soft: #f8fbff;
-        --text: #11203a;
-        --muted: #5e6e87;
-        --line: #d9e1ef;
-        --brand: #0f62fe;
-        --brand-soft: #dbe7ff;
-        --ok-bg: #e4f9ee;
-        --ok-text: #12633f;
-        --bad-bg: #fde9ea;
-        --bad-text: #982328;
-        --warn-bg: #fff3dc;
-        --warn-text: #8f5f15;
-        --shadow: 0 14px 30px rgba(19, 44, 88, 0.08);
+        --bg: #0b1220;
+        --panel: rgba(255, 255, 255, 0.06);
+        --panel2: rgba(255, 255, 255, 0.08);
+        --border: rgba(255, 255, 255, 0.12);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.65);
+        --green: #27c07d;
+        --red: #ff4d6d;
+        --amber: #f6b73c;
+        --blue: #5aa7ff;
       }
 
       * { box-sizing: border-box; }
 
       body {
         margin: 0;
-        background:
-          radial-gradient(1200px 400px at 5% -10%, var(--bg-accent), transparent 50%),
-          linear-gradient(180deg, #f7f9fd 0%, var(--bg) 40%, var(--bg) 100%);
         color: var(--text);
         font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(1200px 600px at 10% -10%, rgba(90, 167, 255, 0.25), transparent 60%),
+          radial-gradient(900px 500px at 90% 0%, rgba(39, 192, 125, 0.18), transparent 55%),
+          radial-gradient(900px 600px at 20% 120%, rgba(255, 77, 109, 0.16), transparent 55%),
+          var(--bg);
       }
 
       .container {
         max-width: 1240px;
-        margin: 28px auto;
-        padding: 0 16px 24px;
+        margin: 0 auto;
+        padding: 22px;
       }
 
       .hero {
-        border: 1px solid var(--line);
-        border-radius: 18px;
-        padding: 22px;
-        background:
-          linear-gradient(120deg, #ffffff 0%, #f4f8ff 48%, #ffffff 100%);
-        box-shadow: var(--shadow);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.05));
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
       }
 
       .hero-top {
@@ -105,18 +100,19 @@ RUN_TEMPLATE = Template(
       }
 
       .meta-chip {
-        background: var(--card-soft);
-        border: 1px solid var(--line);
+        background: var(--panel2);
+        border: 1px solid var(--border);
         border-radius: 12px;
         padding: 10px;
       }
 
-      .meta-chip .label {
+      .meta-chip .label,
+      .label {
         margin: 0;
         color: var(--muted);
         font-size: 11px;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.06em;
       }
 
       .meta-chip .value {
@@ -134,19 +130,10 @@ RUN_TEMPLATE = Template(
       }
 
       .card {
-        background: var(--card);
-        border: 1px solid var(--line);
+        background: var(--panel);
+        border: 1px solid var(--border);
         border-radius: 14px;
         padding: 12px;
-        box-shadow: 0 8px 20px rgba(17, 32, 58, 0.04);
-      }
-
-      .label {
-        margin: 0;
-        font-size: 11px;
-        color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: .06em;
       }
 
       .value {
@@ -157,11 +144,10 @@ RUN_TEMPLATE = Template(
 
       .section {
         margin-top: 16px;
-        background: var(--card);
-        border: 1px solid var(--line);
+        background: var(--panel);
+        border: 1px solid var(--border);
         border-radius: 14px;
         padding: 16px;
-        box-shadow: 0 8px 24px rgba(17, 32, 58, 0.04);
       }
 
       .section h2 {
@@ -177,36 +163,34 @@ RUN_TEMPLATE = Template(
         margin-bottom: 12px;
       }
 
-      .small {
-        margin: 0;
-        color: var(--muted);
-        font-size: 13px;
-      }
+      .small { margin: 0; color: var(--muted); font-size: 13px; }
 
-      table { width: 100%; border-collapse: collapse; }
+      table { width: 100%; border-collapse: separate; border-spacing: 0; }
 
       th,
       td {
-        border-bottom: 1px solid var(--line);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.10);
         text-align: left;
         padding: 10px 8px;
         vertical-align: top;
       }
 
       th {
-        color: var(--muted);
+        color: rgba(255, 255, 255, 0.72);
         font-size: 11px;
         text-transform: uppercase;
-        letter-spacing: .06em;
+        letter-spacing: 0.06em;
         position: sticky;
         top: 0;
-        background: #fff;
+        background: rgba(11, 18, 32, 0.92);
       }
+
+      tbody tr:hover td { background: rgba(255, 255, 255, 0.04); }
 
       .table-wrap {
         overflow-x: auto;
         border-radius: 12px;
-        border: 1px solid var(--line);
+        border: 1px solid var(--border);
       }
 
       .badge {
@@ -215,11 +199,12 @@ RUN_TEMPLATE = Template(
         border-radius: 999px;
         font-size: 11px;
         font-weight: 700;
+        border: 1px solid var(--border);
       }
 
-      .ok { background: var(--ok-bg); color: var(--ok-text); }
-      .bad { background: var(--bad-bg); color: var(--bad-text); }
-      .warn { background: var(--warn-bg); color: var(--warn-text); }
+      .ok { color: var(--green); }
+      .bad { color: var(--red); }
+      .warn { color: var(--amber); }
 
       .failure-list {
         display: grid;
@@ -227,11 +212,11 @@ RUN_TEMPLATE = Template(
       }
 
       .failure-card {
-        border: 1px solid #f7c9cb;
-        border-left: 4px solid #ce3843;
+        border: 1px solid rgba(255, 77, 109, 0.45);
+        border-left: 4px solid var(--red);
         border-radius: 12px;
         padding: 12px;
-        background: #fff8f8;
+        background: rgba(255, 77, 109, 0.08);
       }
 
       .failure-head {
@@ -263,10 +248,10 @@ RUN_TEMPLATE = Template(
 
       .thumb {
         display: block;
-        border: 1px solid var(--line);
+        border: 1px solid var(--border);
         border-radius: 10px;
         overflow: hidden;
-        background: #fff;
+        background: rgba(255, 255, 255, 0.04);
       }
 
       .thumb img {
@@ -287,15 +272,16 @@ RUN_TEMPLATE = Template(
         margin: 10px 0 0;
         padding: 10px;
         border-radius: 10px;
-        background: #132038;
+        background: rgba(0, 0, 0, 0.25);
         color: #e7eefc;
         font-family: "JetBrains Mono", "SF Mono", "Menlo", monospace;
         font-size: 12px;
         overflow-x: auto;
+        border: 1px solid rgba(255, 255, 255, 0.12);
       }
 
       details { margin: 0; }
-      summary { cursor: pointer; color: var(--brand); font-weight: 600; }
+      summary { cursor: pointer; color: var(--blue); font-weight: 600; }
 
       .muted { color: var(--muted); }
 
@@ -305,7 +291,7 @@ RUN_TEMPLATE = Template(
       }
 
       a {
-        color: var(--brand);
+        color: var(--blue);
         text-decoration: none;
       }
 
@@ -317,8 +303,6 @@ RUN_TEMPLATE = Template(
       }
 
       @media (max-width: 720px) {
-        .container { margin-top: 16px; }
-        .hero { padding: 16px; border-radius: 14px; }
         .hero-top { flex-direction: column; align-items: flex-start; }
         .grid,
         .meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

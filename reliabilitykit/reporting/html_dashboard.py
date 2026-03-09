@@ -19,15 +19,16 @@ DASHBOARD_TEMPLATE = Template(
     <title>ReliabilityKit Dashboard</title>
     <style>
       :root {
-        --bg: #f4f6fb;
-        --bg-accent: #def2ff;
-        --card: #ffffff;
-        --line: #d9e1ef;
-        --text: #10213d;
-        --muted: #5a6f8d;
-        --brand: #0f62fe;
-        --ok: #146542;
-        --bad: #9a2229;
+        --bg: #0b1220;
+        --panel: rgba(255, 255, 255, 0.06);
+        --panel2: rgba(255, 255, 255, 0.08);
+        --border: rgba(255, 255, 255, 0.12);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.65);
+        --green: #27c07d;
+        --red: #ff4d6d;
+        --amber: #f6b73c;
+        --blue: #5aa7ff;
       }
 
       * { box-sizing: border-box; }
@@ -37,356 +38,379 @@ DASHBOARD_TEMPLATE = Template(
         color: var(--text);
         font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
         background:
-          radial-gradient(1300px 440px at 8% -8%, var(--bg-accent), transparent 48%),
-          linear-gradient(180deg, #f8fbff 0%, var(--bg) 42%, var(--bg) 100%);
+          radial-gradient(1200px 600px at 10% -10%, rgba(90, 167, 255, 0.25), transparent 60%),
+          radial-gradient(900px 500px at 90% 0%, rgba(39, 192, 125, 0.18), transparent 55%),
+          radial-gradient(900px 600px at 20% 120%, rgba(255, 77, 109, 0.16), transparent 55%),
+          var(--bg);
       }
 
       .container {
-        max-width: 1280px;
-        margin: 24px auto;
-        padding: 0 16px 24px;
-      }
-
-      .hero,
-      .section,
-      .card {
-        background: var(--card);
-        border: 1px solid var(--line);
-        border-radius: 14px;
-      }
-
-      .hero {
+        max-width: 1420px;
+        margin: 0 auto;
         padding: 18px;
-        background: linear-gradient(120deg, #fff 0%, #f4f8ff 45%, #fff 100%);
       }
 
-      .hero h1 {
-        margin: 0;
-        font-size: clamp(22px, 2.6vw, 34px);
-      }
-
-      .small {
-        margin: 8px 0 0;
-        color: var(--muted);
-        font-size: 13px;
-      }
-
-      .grid {
-        margin-top: 14px;
+      .shell {
         display: grid;
-        grid-template-columns: repeat(6, minmax(120px, 1fr));
-        gap: 10px;
+        grid-template-columns: 320px minmax(0, 1fr);
+        gap: 12px;
       }
 
-      .card {
-        padding: 10px 12px;
+      .panel {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--panel);
       }
 
-      .label {
-        margin: 0;
-        color: var(--muted);
-        font-size: 11px;
-        letter-spacing: .06em;
-        text-transform: uppercase;
-      }
-
-      .value {
-        margin: 8px 0 0;
-        font-size: 22px;
-        font-weight: 700;
-      }
-
-      .section {
-        margin-top: 14px;
-        padding: 14px;
-      }
-
-      .section-head {
+      .sidebar {
+        padding: 12px;
+        position: sticky;
+        top: 12px;
+        height: calc(100vh - 24px);
         display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 10px;
+        flex-direction: column;
+      }
+
+      h1 { margin: 0; font-size: 20px; }
+      h2 { margin: 0; font-size: 16px; }
+      .muted { color: var(--muted); }
+      .small { margin: 0; font-size: 12px; color: var(--muted); }
+
+      .top-head {
         margin-bottom: 10px;
       }
 
-      h2 {
-        margin: 0;
-        font-size: 18px;
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 10px 0;
       }
 
-      .pill {
-        display: inline-block;
-        border-radius: 999px;
-        padding: 3px 10px;
-        background: #dbe7ff;
-        color: var(--brand);
-        font-size: 11px;
-        font-weight: 700;
-      }
-
-      .table-wrap {
-        border: 1px solid var(--line);
+      .btn {
+        cursor: pointer;
+        border: 1px solid var(--border);
         border-radius: 10px;
-        overflow-x: auto;
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.88);
+        font-size: 11px;
+        padding: 6px 8px;
+      }
+
+      .btn.active {
+        background: rgba(90, 167, 255, 0.2);
+        border-color: rgba(90, 167, 255, 0.35);
+      }
+
+      .search {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.2);
+        color: var(--text);
+        outline: none;
+      }
+
+      .run-list {
+        list-style: none;
+        margin: 10px 0 0;
+        padding: 0;
+        overflow-y: auto;
+        flex: 1;
+      }
+
+      .run-item {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        margin-bottom: 8px;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.03);
+        cursor: pointer;
+      }
+
+      .run-item.active {
+        border-color: rgba(90, 167, 255, 0.45);
+        background: rgba(90, 167, 255, 0.15);
+      }
+
+      .run-item .id { font-size: 12px; font-weight: 700; }
+      .run-item .meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+      .main {
+        display: grid;
+        gap: 12px;
+      }
+
+      .analytics {
+        padding: 12px;
+      }
+
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(120px, 1fr));
+        gap: 10px;
+      }
+
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--panel2);
+        padding: 10px;
+      }
+
+      .label { margin: 0; color: var(--muted); font-size: 11px; text-transform: uppercase; }
+      .value { margin: 6px 0 0; font-size: 24px; font-weight: 800; }
+
+      .charts {
+        margin-top: 10px;
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 10px;
+      }
+
+      .chart-box {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.03);
+        padding: 10px;
+      }
+
+      .legend {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
       }
 
       table {
         width: 100%;
-        border-collapse: collapse;
+        border-collapse: separate;
+        border-spacing: 0;
       }
 
       th,
       td {
-        border-bottom: 1px solid var(--line);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.10);
         text-align: left;
-        padding: 9px 8px;
-        font-size: 13px;
+        padding: 10px 8px;
+        font-size: 12px;
+        vertical-align: top;
       }
 
       th {
-        color: var(--muted);
+        color: rgba(255, 255, 255, 0.72);
         font-size: 11px;
-        letter-spacing: .06em;
         text-transform: uppercase;
+        letter-spacing: 0.04em;
       }
 
-      .status-pass,
-      .status-fail {
-        display: inline-block;
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+      }
+
+      .section {
+        padding: 12px;
+      }
+
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 8px;
+      }
+
+      .status {
         border-radius: 999px;
+        border: 1px solid var(--border);
         padding: 3px 8px;
         font-size: 11px;
         font-weight: 700;
       }
+      .status.pass { color: var(--green); }
+      .status.fail { color: var(--red); }
 
-      .status-pass { background: #e7faef; color: var(--ok); }
-      .status-fail { background: #ffe9ea; color: var(--bad); }
+      .test-row { cursor: pointer; }
+      .test-row:hover td { background: rgba(255, 255, 255, 0.04); }
+      .detail-row { display: none; }
+      .detail-row.open { display: table-row; }
+      .detail-box { padding: 10px; }
 
-      .btn {
-        border: 1px solid #b8c9e8;
-        border-radius: 8px;
-        background: #edf3ff;
-        color: #12366f;
-        font-size: 12px;
-        font-weight: 700;
-        padding: 4px 8px;
-        cursor: pointer;
-      }
-
-      .btn:hover { background: #dfebff; }
-
-      .split {
+      .artifact-grid {
+        margin-top: 8px;
         display: grid;
-        grid-template-columns: 1.4fr 1fr;
-        gap: 10px;
-      }
-
-      .kv {
-        margin: 8px 0 0;
-        display: grid;
-        grid-template-columns: repeat(3, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
         gap: 8px;
       }
 
-      .kv .card { padding: 10px; }
-
-      .list {
-        margin: 8px 0 0;
-        padding-left: 18px;
+      .artifact-grid a {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.04);
+        display: block;
+        overflow: hidden;
+        color: #d9eaff;
+        text-decoration: none;
       }
 
-      .muted { color: var(--muted); }
-      .ok { color: var(--ok); }
-      .bad { color: var(--bad); }
+      .artifact-grid img {
+        width: 100%;
+        display: block;
+      }
 
       pre {
-        margin: 8px 0 0;
-        max-height: 200px;
+        max-height: 240px;
         overflow: auto;
-        border-radius: 8px;
-        padding: 10px;
-        background: #122137;
-        color: #e7eefc;
-        font-size: 12px;
-        font-family: "JetBrains Mono", "SF Mono", "Menlo", monospace;
-      }
-
-      .warn {
-        margin-top: 8px;
-        color: #8a5b12;
-        background: #fff3dc;
-        border: 1px solid #f1d9ab;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--border);
         border-radius: 8px;
         padding: 8px;
+        margin: 6px 0 0;
+        color: #e7eefc;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         font-size: 12px;
       }
 
-      @media (max-width: 1040px) {
-        .grid { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
-        .split { grid-template-columns: 1fr; }
+      @media (max-width: 1180px) {
+        .shell { grid-template-columns: 1fr; }
+        .sidebar { position: static; height: auto; }
+        .charts { grid-template-columns: 1fr; }
       }
 
-      @media (max-width: 680px) {
-        .grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
-        .kv { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
-      }
-
-      @media (max-width: 520px) {
-        .grid,
-        .kv { grid-template-columns: 1fr; }
+      @media (max-width: 760px) {
+        .kpis { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <section class="hero">
-        <h1>Reliability Dashboard</h1>
-        <p class="small">Unified latest-run triage + historical reliability context for {{ metrics.run_count }} runs.</p>
-      </section>
+      <div class="shell">
+        <aside class="panel sidebar">
+          <div class="top-head">
+            <h1>Reliability Dashboard</h1>
+            <p class="small">Entry point for run triage and historical reliability context.</p>
+          </div>
 
-      <section class="grid">
-        <article class="card"><p class="label">Window Pass Rate</p><p class="value">{{ metrics.pass_rate }}%</p></article>
-        <article class="card"><p class="label">Window Reliability</p><p class="value">{{ metrics.run_reliability_avg }}%</p></article>
-        <article class="card"><p class="label">Runs</p><p class="value">{{ metrics.run_count }}</p></article>
-        <article class="card"><p class="label">P50 Duration</p><p class="value">{{ metrics.p50_duration_ms }} ms</p></article>
-        <article class="card"><p class="label">P95 Duration</p><p class="value">{{ metrics.p95_duration_ms }} ms</p></article>
-        <article class="card"><p class="label">Chaos Pass Rate</p><p class="value">{{ metrics.chaos_summary.chaos.pass_rate }}%</p></article>
-        <article class="card"><p class="label">Baseline Pass Rate</p><p class="value">{{ metrics.chaos_summary.baseline.pass_rate }}%</p></article>
-      </section>
+          <div class="toolbar" id="timeframe-buttons">
+            <button class="btn active" data-days="7">7d</button>
+            <button class="btn" data-days="14">14d</button>
+            <button class="btn" data-days="30">30d</button>
+            <button class="btn" data-days="90">90d</button>
+            <button class="btn" data-days="all">All</button>
+          </div>
 
-      <section class="section">
-        <div class="section-head">
-          <h2>Selected Run</h2>
-          <span class="pill">Load any run below</span>
-        </div>
-        <p class="small" id="selected-meta">No run selected.</p>
-        <div class="kv">
-          <article class="card"><p class="label">Status</p><p class="value" id="selected-status">-</p></article>
-          <article class="card"><p class="label">Pass Rate</p><p class="value" id="selected-pass-rate">-</p></article>
-          <article class="card"><p class="label">Reliability</p><p class="value" id="selected-reliability">-</p></article>
-          <article class="card"><p class="label">Duration</p><p class="value" id="selected-duration">-</p></article>
-          <article class="card"><p class="label">Total Tests</p><p class="value" id="selected-total">-</p></article>
-          <article class="card"><p class="label">Failed</p><p class="value" id="selected-failed">-</p></article>
-          <article class="card"><p class="label">Chaos Profile</p><p class="value" id="selected-chaos">-</p></article>
-        </div>
-        <div id="fetch-warn"></div>
-        <div class="split">
-          <article class="card">
-            <p class="label">Failure Type Distribution</p>
-            <ul class="list" id="selected-failure-types"><li class="muted">none</li></ul>
-          </article>
-          <article class="card">
-            <p class="label">Failed Tests</p>
-            <ul class="list" id="selected-failed-tests"><li class="muted">none</li></ul>
-          </article>
-        </div>
-      </section>
+          <input id="run-search" class="search" placeholder="Search run id or profile" />
+          <ul id="run-list" class="run-list"></ul>
+          <button id="load-more" class="btn">Load more runs</button>
+        </aside>
 
-      <section class="section">
-        <div class="section-head">
-          <h2>Least Reliable Tests (Window)</h2>
-          <span class="pill">Reliability Engine</span>
-        </div>
-        {% if metrics.top_reliability_risks %}
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Test</th><th>Reliability</th><th>Pass Rate</th><th>Flake Rate</th><th>Chaos Sensitivity</th><th>Failure Diversity</th></tr></thead>
-            <tbody>
-            {% for row in metrics.top_reliability_risks %}
-              <tr>
-                <td>{{ row.nodeid }}</td>
-                <td>{{ row.reliability_score }}%</td>
-                <td>{{ row.pass_rate }}%</td>
-                <td>{{ row.flake_rate }}%</td>
-                <td>{{ row.chaos_sensitivity }}%</td>
-                <td>{{ row.failure_diversity }}</td>
-              </tr>
-            {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <p class="small">No reliability risk data for this window.</p>
-        {% endif %}
-      </section>
+        <main class="main">
+          <section class="panel analytics">
+            <div class="kpis">
+              <article class="card"><p class="label">Runs</p><p class="value">{{ metrics.run_count }}</p></article>
+              <article class="card"><p class="label">Window Pass Rate</p><p class="value">{{ metrics.pass_rate }}%</p></article>
+              <article class="card"><p class="label">Window Reliability</p><p class="value">{{ metrics.run_reliability_avg }}%</p></article>
+              <article class="card"><p class="label">P95 Duration</p><p class="value">{{ metrics.p95_duration_ms }} ms</p></article>
+            </div>
 
-      <section class="section">
-        <div class="section-head">
-          <h2>Window Failure Type Distribution</h2>
-          <span class="pill">Classifier</span>
-        </div>
-        {% if metrics.failure_distribution %}
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Failure Type</th><th>Count</th></tr></thead>
-            <tbody>
-            {% for failure_type, count in metrics.failure_distribution.items() %}
-              <tr><td>{{ failure_type }}</td><td>{{ count }}</td></tr>
-            {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <p class="small">No failed tests captured for this window.</p>
-        {% endif %}
-      </section>
+            <div class="charts">
+              <article class="chart-box">
+                <h2>Failure Type Distribution</h2>
+                <svg id="failureDonut" viewBox="0 0 260 220" width="100%" role="img" aria-label="Failure type donut chart"></svg>
+                <div id="failureLegend" class="legend"></div>
+              </article>
 
-      <section class="section">
-        <div class="section-head">
-          <h2>Top Failing Tests (Window)</h2>
-          <span class="pill">Hotspots</span>
-        </div>
-        {% if metrics.top_failing_tests %}
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Test</th><th>Failures</th></tr></thead>
-            <tbody>
-            {% for test_id, count in metrics.top_failing_tests %}
-              <tr><td>{{ test_id }}</td><td>{{ count }}</td></tr>
-            {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <p class="small">No failing tests captured for this window.</p>
-        {% endif %}
-      </section>
+              <article class="chart-box">
+                <h2>Run Trend</h2>
+                <svg id="trendChart" viewBox="0 0 860 220" width="100%" role="img" aria-label="Pass rate and reliability over time"></svg>
+                <div class="legend">Blue = pass rate, Green = reliability score</div>
+              </article>
+            </div>
+          </section>
 
-      <section class="section">
-        <div class="section-head">
-          <h2>Run History</h2>
-          <span class="pill">Latest {{ metrics.run_count }}</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Run ID</th><th>Status</th><th>Duration (ms)</th><th>Failed</th><th>Pass Rate</th><th>Reliability</th><th>Chaos</th><th>Action</th></tr>
-            </thead>
-            <tbody>
-            {% for r in metrics.series | reverse %}
-              <tr>
-                <td>{{ r.run_id }}</td>
-                <td>{% if r.status == "passed" %}<span class="status-pass">passed</span>{% else %}<span class="status-fail">failed</span>{% endif %}</td>
-                <td>{{ r.duration_ms }}</td>
-                <td>{{ r.failed }}</td>
-                <td>{{ r.pass_rate }}%</td>
-                <td>{{ r.run_reliability_score }}%</td>
-                <td>{{ r.chaos_profile }}</td>
-                <td><button class="btn" data-run-json="{{ r.run_json_path }}">Load</button></td>
-              </tr>
-            {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </section>
+          <section class="panel section">
+            <div class="section-head">
+              <h2>Least Reliable Tests (Top 10)</h2>
+              <span class="small">Rolling risk ranking</span>
+            </div>
+            {% if metrics.top_reliability_risks %}
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Test</th><th>Reliability</th><th>Pass Rate</th><th>Flake Rate</th><th>Chaos Sensitivity</th></tr></thead>
+                <tbody>
+                {% for row in metrics.top_reliability_risks %}
+                  <tr>
+                    <td>{{ row.nodeid }}</td>
+                    <td>{{ row.reliability_score }}%</td>
+                    <td>{{ row.pass_rate }}%</td>
+                    <td>{{ row.flake_rate }}%</td>
+                    <td>{{ row.chaos_sensitivity }}%</td>
+                  </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <p class="small">No reliability risk data available.</p>
+            {% endif %}
+          </section>
+
+          <section class="panel section">
+            <div class="section-head">
+              <h2 id="selected-run-title">Selected Run</h2>
+              <div>
+                <button class="btn" id="open-run-report">Open report</button>
+              </div>
+            </div>
+            <p class="small" id="selected-run-meta">Pick a run from the sidebar.</p>
+
+            <div class="toolbar">
+              <div>
+                <button class="btn active" data-test-filter="ALL">All</button>
+                <button class="btn" data-test-filter="FAILED">Failed</button>
+                <button class="btn" data-test-filter="PASSED">Passed</button>
+              </div>
+              <input id="test-search" class="search" style="max-width: 380px;" placeholder="Search tests" />
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Status</th><th>Test</th><th>Failure Type</th><th>Duration</th></tr>
+                </thead>
+                <tbody id="selected-tests-body"></tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
     </div>
 
     <script>
       const trendData = {{ trend_json | safe }};
-      const initialRun = {{ latest_run_json | safe }};
-      const runReliabilityById = new Map((trendData.series || []).map((row) => [row.run_id, row.run_reliability_score]));
+      const runsById = new Map(Object.entries({{ runs_by_id_json | safe }}));
+      const runSeries = (trendData.series || []).slice().sort((a, b) => b.started_at.localeCompare(a.started_at));
+      const runJsonPathById = new Map(runSeries.map((row) => [row.run_id, row.run_json_path]));
+      const runReportPathById = new Map(runSeries.map((row) => [row.run_id, row.report_path]));
 
-      function escapeHtml(value) {
+      const FAILURE_LABELS = {
+        assertion_failure: "Assertion Failure",
+        timeout_navigation: "Navigation Timeout",
+        timeout_selector: "Selector Timeout",
+        network_error: "Network Error",
+        http_5xx: "HTTP 5xx",
+        browser_crash: "Browser Crash",
+        environment_error: "Environment Error",
+        unknown: "Unknown",
+      };
+
+      let selectedRunId = runSeries.length ? runSeries[0].run_id : null;
+      let visibleRunCount = 50;
+      let timeframeDays = 7;
+      let currentTestFilter = "ALL";
+
+      function esc(value) {
         return String(value)
           .replaceAll("&", "&amp;")
           .replaceAll("<", "&lt;")
@@ -395,79 +419,287 @@ DASHBOARD_TEMPLATE = Template(
           .replaceAll("'", "&#039;");
       }
 
-      function summarizeRun(run) {
-        const tests = Array.isArray(run.tests) ? run.tests : [];
-        const total = tests.length;
-        const failed = tests.filter((t) => t.status === "failed");
-        const passed = tests.filter((t) => t.status === "passed").length;
-        const passRate = total ? ((passed / total) * 100).toFixed(2) : "0.00";
-
-        const distribution = {};
-        for (const test of failed) {
-          const key = test.failure_type || "unknown";
-          distribution[key] = (distribution[key] || 0) + 1;
-        }
-
-        return { total, failed, passRate, distribution };
+      function failureLabel(value) {
+        if (!value || value === "-") return "-";
+        return FAILURE_LABELS[value] || value.split("_").map((part) => part[0].toUpperCase() + part.slice(1)).join(" ");
       }
 
-      function renderRun(run) {
-        if (!run) {
+      function normalizeArtifactPath(path) {
+        if (!path) return "";
+        if (path.startsWith("http://") || path.startsWith("https://")) return path;
+        let clean = path;
+        if (clean.startsWith(".reliabilitykit/")) clean = clean.slice(".reliabilitykit/".length);
+        if (clean.startsWith("/")) clean = clean.slice(1);
+        return clean;
+      }
+
+      function artifactHref(runId, artifactPath) {
+        const clean = normalizeArtifactPath(artifactPath);
+        if (!clean) return "";
+        if (clean.startsWith("runs/")) return clean;
+
+        const runJsonPath = runJsonPathById.get(runId) || "";
+        const base = runJsonPath.endsWith("/run.json") ? runJsonPath.slice(0, -9) : "";
+        if (clean.startsWith("artifacts/") && base) return `${base}/${clean}`;
+        return clean;
+      }
+
+      function getFilteredRuns() {
+        const query = (document.getElementById("run-search").value || "").trim().toLowerCase();
+        const now = new Date();
+        return runSeries.filter((row) => {
+          if (timeframeDays !== null) {
+            const started = new Date(row.started_at);
+            const diffDays = (now - started) / (1000 * 60 * 60 * 24);
+            if (diffDays > timeframeDays) return false;
+          }
+
+          if (!query) return true;
+          const text = `${row.run_id} ${row.chaos_profile || "none"}`.toLowerCase();
+          return text.includes(query);
+        });
+      }
+
+      function renderRunSidebar() {
+        const list = document.getElementById("run-list");
+        const rows = getFilteredRuns();
+        const shown = rows.slice(0, visibleRunCount);
+
+        list.innerHTML = shown.map((row) => {
+          const statusClass = row.status === "passed" ? "pass" : "fail";
+          const active = row.run_id === selectedRunId ? "active" : "";
+          return `
+            <li class="run-item ${active}" data-run-id="${esc(row.run_id)}">
+              <div class="id">${esc(row.run_id)}</div>
+              <div class="meta">
+                <span class="status ${statusClass}">${esc(row.status)}</span>
+                pass ${esc(row.pass_rate)}% • failed ${esc(row.failed)} • ${esc(row.chaos_profile)}
+              </div>
+            </li>
+          `;
+        }).join("");
+
+        for (const item of list.querySelectorAll(".run-item")) {
+          item.addEventListener("click", () => {
+            selectedRunId = item.dataset.runId;
+            renderRunSidebar();
+            renderSelectedRun();
+          });
+        }
+
+        document.getElementById("load-more").style.display = rows.length > shown.length ? "block" : "none";
+
+        if (!selectedRunId && shown.length) {
+          selectedRunId = shown[0].run_id;
+          renderSelectedRun();
+        }
+      }
+
+      function summarizeRun(run) {
+        const tests = Array.isArray(run.tests) ? run.tests : [];
+        const passed = tests.filter((test) => test.status === "passed").length;
+        const failed = tests.filter((test) => test.status === "failed").length;
+        const passRate = tests.length ? ((passed / tests.length) * 100).toFixed(2) : "0.00";
+        return { tests, passed, failed, passRate };
+      }
+
+      function renderSelectedRun() {
+        if (!selectedRunId) return;
+        const run = runsById.get(selectedRunId);
+        if (!run) return;
+
+        const summary = summarizeRun(run);
+        document.getElementById("selected-run-title").textContent = `Selected Run: ${run.run_id}`;
+        document.getElementById("selected-run-meta").textContent =
+          `started ${run.started_at} • ended ${run.ended_at} • status ${run.status} • pass ${summary.passRate}% • tests ${summary.tests.length}`;
+
+        const reportPath = runReportPathById.get(run.run_id) || "";
+        document.getElementById("open-run-report").onclick = () => {
+          if (reportPath) window.location.href = reportPath;
+        };
+
+        renderSelectedRunTests(run);
+      }
+
+      function renderSelectedRunTests(run) {
+        const tbody = document.getElementById("selected-tests-body");
+        const query = (document.getElementById("test-search").value || "").trim().toLowerCase();
+        const tests = (Array.isArray(run.tests) ? run.tests : [])
+          .slice()
+          .sort((a, b) => {
+            if (a.status === b.status) return a.nodeid.localeCompare(b.nodeid);
+            return a.status === "failed" ? -1 : 1;
+          })
+          .filter((test) => {
+            if (currentTestFilter !== "ALL" && test.status.toUpperCase() !== currentTestFilter) return false;
+            if (!query) return true;
+            const full = `${test.nodeid} ${test.failure_type || ""}`.toLowerCase();
+            return full.includes(query);
+          });
+
+        tbody.innerHTML = tests.map((test, index) => {
+          const isFailed = test.status === "failed";
+          const statusClass = isFailed ? "fail" : "pass";
+          const failure = isFailed ? failureLabel(test.failure_type || "unknown") : "-";
+          const detailId = `detail-${index}`;
+
+          const artifacts = Array.isArray(test.artifacts) ? test.artifacts : [];
+          const artifactHtml = artifacts.length
+            ? `<div class="artifact-grid">${artifacts.map((artifact) => {
+                const href = artifactHref(run.run_id, artifact.path || "");
+                const isImage = (artifact.kind || "").toLowerCase() === "screenshot";
+                return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${
+                  isImage ? `<img src="${esc(href)}" alt="${esc(test.nodeid)}" />` : ""
+                }<div style=\"padding:6px 8px;font-size:11px;\">${esc(artifact.kind || "artifact")}</div></a>`;
+              }).join("")}</div>`
+            : '<p class="small">No artifacts.</p>';
+
+          const errorHtml = test.error_message ? `<pre>${esc(String(test.error_message))}</pre>` : '<p class="small">No error details.</p>';
+
+          return `
+            <tr class="test-row" data-detail-id="${detailId}">
+              <td><span class="status ${statusClass}">${esc(test.status)}</span></td>
+              <td>${esc(test.nodeid)}</td>
+              <td>${esc(failure)}</td>
+              <td>${esc(test.duration_ms || 0)} ms</td>
+            </tr>
+            <tr id="${detailId}" class="detail-row">
+              <td colspan="4" class="detail-box">
+                <strong>Error Details</strong>
+                ${errorHtml}
+                <div style="margin-top:8px;"><strong>Artifacts</strong></div>
+                ${artifactHtml}
+              </td>
+            </tr>
+          `;
+        }).join("");
+
+        for (const row of tbody.querySelectorAll(".test-row")) {
+          row.addEventListener("click", () => {
+            const detailId = row.dataset.detailId;
+            const detail = document.getElementById(detailId);
+            if (detail) detail.classList.toggle("open");
+          });
+        }
+      }
+
+      function renderFailureDonut() {
+        const svg = document.getElementById("failureDonut");
+        const legend = document.getElementById("failureLegend");
+        const entries = Object.entries(trendData.failure_distribution || {});
+        if (!entries.length) {
+          svg.innerHTML = '<text x="10" y="20" fill="rgba(255,255,255,0.65)" font-size="13">No failures in selected window.</text>';
+          legend.textContent = "";
           return;
         }
 
-        const summary = summarizeRun(run);
-        document.getElementById("selected-meta").textContent = `${run.run_id} | started ${run.started_at} | ended ${run.ended_at}`;
-        document.getElementById("selected-status").textContent = run.status || "-";
-        document.getElementById("selected-pass-rate").textContent = `${summary.passRate}%`;
-        const runReliability = runReliabilityById.get(run.run_id);
-        document.getElementById("selected-reliability").textContent = runReliability !== undefined ? `${runReliability}%` : "-";
-        document.getElementById("selected-duration").textContent = `${run.duration_ms || 0} ms`;
-        document.getElementById("selected-total").textContent = String(summary.total);
-        document.getElementById("selected-failed").textContent = String(summary.failed.length);
-        document.getElementById("selected-chaos").textContent = run.chaos_profile || "none";
+        const total = entries.reduce((acc, item) => acc + Number(item[1]), 0);
+        const colors = ["#ff4d6d", "#f6b73c", "#5aa7ff", "#27c07d", "#a58cff", "#62d4c8", "#ff8e5a"];
+        const cx = 90;
+        const cy = 95;
+        const radius = 72;
+        const strokeWidth = 34;
 
-        const distEl = document.getElementById("selected-failure-types");
-        const distEntries = Object.entries(summary.distribution).sort((a, b) => b[1] - a[1]);
-        distEl.innerHTML = distEntries.length
-          ? distEntries.map(([name, count]) => `<li>${escapeHtml(name)}: ${count}</li>`).join("")
-          : '<li class="muted">none</li>';
+        let offset = 0;
+        const circles = entries.map(([key, value], index) => {
+          const fraction = Number(value) / total;
+          const length = 2 * Math.PI * radius * fraction;
+          const circumference = 2 * Math.PI * radius;
+          const node = `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="none" stroke="${colors[index % colors.length]}" stroke-width="${strokeWidth}" stroke-dasharray="${length} ${circumference - length}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"></circle>`;
+          offset += length;
+          return node;
+        }).join("");
 
-        const failedEl = document.getElementById("selected-failed-tests");
-        failedEl.innerHTML = summary.failed.length
-          ? summary.failed.slice(0, 10).map((test) => {
-              const confidence = typeof test.classification_confidence === "number"
-                ? ` (confidence ${test.classification_confidence.toFixed(2)})`
-                : "";
-              const error = test.error_message ? `<pre>${escapeHtml(String(test.error_message).slice(0, 600))}</pre>` : "";
-              return `<li><strong>${escapeHtml(test.nodeid)}</strong> - ${escapeHtml(test.failure_type || "unknown")}${confidence}${error}</li>`;
-            }).join("")
-          : '<li class="muted">none</li>';
+        svg.innerHTML = `
+          <g>${circles}</g>
+          <circle cx="${cx}" cy="${cy}" r="${radius - strokeWidth / 2}" fill="rgba(11,18,32,0.95)"></circle>
+          <text x="${cx}" y="${cy - 4}" text-anchor="middle" fill="#fff" font-size="18" font-weight="700">${total}</text>
+          <text x="${cx}" y="${cy + 16}" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="11">failures</text>
+        `;
 
-        document.getElementById("fetch-warn").innerHTML = "";
+        legend.innerHTML = entries.map(([key, value], index) => {
+          const color = colors[index % colors.length];
+          return `<div><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:${color};margin-right:6px;"></span>${esc(failureLabel(key))}: ${esc(value)}</div>`;
+        }).join("");
       }
 
-      async function loadRun(path) {
-        try {
-          const response = await fetch(path);
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          const run = await response.json();
-          renderRun(run);
-        } catch (err) {
-          document.getElementById("fetch-warn").innerHTML =
-            '<div class="warn">Could not load run.json on demand. If opening this file directly, serve the storage root with an HTTP server (for example: <code>python -m http.server -d .reliabilitykit 8000</code>) and open <code>http://localhost:8000/dashboard.html</code>.</div>';
+      function renderTrendChart() {
+        const chart = document.getElementById("trendChart");
+        const series = runSeries.slice().reverse();
+        if (!series.length) {
+          chart.innerHTML = '<text x="20" y="24" fill="rgba(255,255,255,0.65)" font-size="13">No run history available.</text>';
+          return;
         }
+
+        const width = 860;
+        const height = 220;
+        const pad = { top: 12, right: 16, bottom: 28, left: 30 };
+        const innerW = width - pad.left - pad.right;
+        const innerH = height - pad.top - pad.bottom;
+
+        const toX = (index) => pad.left + (series.length === 1 ? innerW / 2 : (innerW * index) / (series.length - 1));
+        const toY = (value) => pad.top + innerH - (Math.max(0, Math.min(100, Number(value) || 0)) / 100) * innerH;
+        const pathFrom = (values) => values.map((value, index) => `${index === 0 ? "M" : "L"}${toX(index)},${toY(value)}`).join(" ");
+
+        const pass = series.map((row) => row.pass_rate || 0);
+        const rel = series.map((row) => row.run_reliability_score || 0);
+        const guides = [0, 25, 50, 75, 100].map((value) =>
+          `<line x1="${pad.left}" y1="${toY(value)}" x2="${width - pad.right}" y2="${toY(value)}" stroke="rgba(255,255,255,0.1)" stroke-width="1" />`
+        ).join("");
+
+        chart.innerHTML = `
+          ${guides}
+          <path d="${pathFrom(pass)}" fill="none" stroke="#5aa7ff" stroke-width="3" stroke-linecap="round" />
+          <path d="${pathFrom(rel)}" fill="none" stroke="#27c07d" stroke-width="3" stroke-linecap="round" />
+          ${pass.map((value, index) => `<circle cx="${toX(index)}" cy="${toY(value)}" r="2.8" fill="#5aa7ff"></circle>`).join("")}
+          ${rel.map((value, index) => `<circle cx="${toX(index)}" cy="${toY(value)}" r="2.8" fill="#27c07d"></circle>`).join("")}
+        `;
       }
 
-      for (const button of document.querySelectorAll("button[data-run-json]")) {
-        button.addEventListener("click", () => loadRun(button.dataset.runJson));
+      function wireEvents() {
+        document.getElementById("run-search").addEventListener("input", () => {
+          visibleRunCount = 50;
+          renderRunSidebar();
+        });
+
+        document.getElementById("load-more").addEventListener("click", () => {
+          visibleRunCount += 50;
+          renderRunSidebar();
+        });
+
+        for (const button of document.querySelectorAll("#timeframe-buttons .btn")) {
+          button.addEventListener("click", () => {
+            for (const other of document.querySelectorAll("#timeframe-buttons .btn")) {
+              other.classList.remove("active");
+            }
+            button.classList.add("active");
+
+            const raw = button.dataset.days;
+            timeframeDays = raw === "all" ? null : Number(raw);
+            visibleRunCount = 50;
+            renderRunSidebar();
+          });
+        }
+
+        for (const button of document.querySelectorAll("button[data-test-filter]")) {
+          button.addEventListener("click", () => {
+            currentTestFilter = button.dataset.testFilter;
+            for (const other of document.querySelectorAll("button[data-test-filter]")) {
+              other.classList.remove("active");
+            }
+            button.classList.add("active");
+            renderSelectedRun();
+          });
+        }
+
+        document.getElementById("test-search").addEventListener("input", () => renderSelectedRun());
       }
 
-      if (initialRun) {
-        renderRun(initialRun);
-      }
+      wireEvents();
+      renderRunSidebar();
+      renderSelectedRun();
+      renderFailureDonut();
+      renderTrendChart();
 
       window.__RK_DASHBOARD_DATA__ = trendData;
     </script>
@@ -479,12 +711,11 @@ DASHBOARD_TEMPLATE = Template(
 
 def write_dashboard_report(runs: list[RunRecord], output_path: Path) -> None:
     metrics = build_trend_metrics(runs)
-    latest = runs[-1] if runs else None
     trend_json = json.dumps(metrics)
-    latest_run_json = json.dumps(latest.model_dump(mode="json") if latest else None)
+    runs_by_id_json = json.dumps({run.run_id: run.model_dump(mode="json") for run in runs})
     html = DASHBOARD_TEMPLATE.render(
         metrics=metrics,
         trend_json=trend_json,
-        latest_run_json=latest_run_json,
+        runs_by_id_json=runs_by_id_json,
     )
     output_path.write_text(html, encoding="utf-8")

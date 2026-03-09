@@ -40,6 +40,8 @@ def execute_pytest_run(
 
     prior_profile = os.environ.get("RK_CHAOS_PROFILE")
     prior_seed = os.environ.get("RK_CHAOS_SEED")
+    prior_run_dir = os.environ.get("RK_RUN_DIR")
+    os.environ["RK_RUN_DIR"] = str(run_dir)
     if chaos_profile:
         os.environ["RK_CHAOS_PROFILE"] = chaos_profile
     if chaos_seed is not None:
@@ -57,6 +59,11 @@ def execute_pytest_run(
             os.environ.pop("RK_CHAOS_SEED", None)
         else:
             os.environ["RK_CHAOS_SEED"] = prior_seed
+
+        if prior_run_dir is None:
+            os.environ.pop("RK_RUN_DIR", None)
+        else:
+            os.environ["RK_RUN_DIR"] = prior_run_dir
 
     ended_at = datetime.now(UTC)
     tests = plugin.records

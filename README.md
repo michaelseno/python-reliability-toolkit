@@ -71,6 +71,7 @@ Run chaos profiles:
 ```bash
 reliabilitykit chaos list
 reliabilitykit chaos show latency_light
+reliabilitykit chaos show fail_hard
 make chaos-profiles
 make chaos-show CHAOS_PROFILE=latency_light
 make run-chaos-latency
@@ -80,6 +81,8 @@ make run-chaos-ci-fault
 ```
 
 `run-chaos-ci-*` targets are fixed-seed CI lane commands for reproducible chaos triage.
+`fail_hard` is an intentionally aggressive profile (`abort`, probability `1.0`) intended for
+failure-path validation.
 
 You can also control workers directly:
 
@@ -99,7 +102,16 @@ make clean-data
 ```
 
 `make dashboard` is the primary report surface and combines latest-run triage with historical trends.
-`make trend` and `make report` remain available for focused legacy views.
+`make trend` now generates a compatibility redirect to `dashboard.html`.
+`make report` remains available for focused single-run deep dives.
+
+Dashboard UX is single-page:
+
+- left sidebar run history with timeframe filters (`7d`, `14d`, `30d`, `90d`, `all`)
+- run sidebar pagination (`Load more` in batches of 50)
+- top analytics with failure-type donut and trend chart
+- least-reliable top 10 table
+- selected run test table with expandable error details and screenshots
 
 All run outputs are written to `.reliabilitykit/` by default.
 

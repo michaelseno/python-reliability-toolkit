@@ -10,6 +10,8 @@ def classify_failure(message: str | None) -> tuple[FailureType, float]:
     lower = message.lower()
     if "assertionerror" in lower or "assert " in lower or "assertion failed" in lower:
         return "assertion_failure", 0.9
+    if "timeout" in lower and "waiting for event \"response\"" in lower:
+        return "network_error", 0.9
     if "timeout" in lower and "selector" in lower:
         return "timeout_selector", 0.85
     if "timeout" in lower and "navigation" in lower:
