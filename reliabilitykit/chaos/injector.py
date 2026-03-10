@@ -39,8 +39,16 @@ async def attach_chaos_routes(
             await asyncio.sleep(max(decision.latency_ms, 0) / 1000)
             await route.continue_()
             return
+        if decision.action == "hang":
+            await asyncio.sleep(max(decision.hang_ms, 0) / 1000)
+            await route.continue_()
+            return
         if decision.action == "fulfill":
-            await route.fulfill(status=decision.status_code or 500, body="chaos injected")
+            await route.fulfill(
+                status=decision.status_code or 500,
+                body=decision.body or "chaos injected",
+                content_type=decision.content_type,
+            )
             return
         if decision.action == "abort":
             await route.abort("failed")

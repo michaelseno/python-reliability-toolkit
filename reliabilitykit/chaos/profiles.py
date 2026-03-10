@@ -11,7 +11,10 @@ class ChaosDecision:
     inject: bool
     action: str
     latency_ms: int = 0
+    hang_ms: int = 0
     status_code: int | None = None
+    body: str | None = None
+    content_type: str | None = None
 
 
 class ChaosEngine:
@@ -29,11 +32,22 @@ class ChaosEngine:
         if mode == "latency":
             ms = self.random.randint(self.profile.latency_ms.min, self.profile.latency_ms.max)
             return ChaosDecision(inject=True, action="delay", latency_ms=ms)
-        if mode == "http_5xx":
+        if mode in {"http_5xx", "http_status"}:
             code = self.random.choice(self.profile.status_codes)
             return ChaosDecision(inject=True, action="fulfill", status_code=code)
         if mode == "abort":
             return ChaosDecision(inject=True, action="abort")
+        if mode == "malformed_json":
+            code = self.random.choice(self.profile.status_codes) if self.profile.status_codes else 200
+            return ChaosDecision(
+                inject=True,
+                action="fulfill",
+                status_code=code,
+                body='{"chaos": "broken-json"',
+                content_type="application/json",
+            )
+        if mode == "timeout_hang":
+            return ChaosDecision(inject=True, action="hang", hang_ms=max(self.profile.hang_ms, 0))
 
         mixed_action = self.random.choice(["delay", "fulfill", "abort"])
         if mixed_action == "delay":

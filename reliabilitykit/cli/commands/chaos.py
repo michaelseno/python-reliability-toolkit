@@ -78,6 +78,7 @@ def show_chaos_profile(
         "probability": item.probability,
         "seed": item.seed,
         "latency_ms": {"min": item.latency_ms.min, "max": item.latency_ms.max},
+        "hang_ms": item.hang_ms,
         "status_codes": item.status_codes,
         "targets": [target.model_dump(mode="json") for target in item.targets],
     }
@@ -92,7 +93,7 @@ def show_chaos_profile(
     )
     typer.echo(
         f"latency_ms={payload['latency_ms']['min']}-{payload['latency_ms']['max']} "
-        f"status_codes={payload['status_codes']}"
+        f"hang_ms={payload['hang_ms']} status_codes={payload['status_codes']}"
     )
     if not payload["targets"]:
         typer.echo("targets: none")

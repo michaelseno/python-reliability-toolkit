@@ -40,10 +40,11 @@ class LatencyRange(BaseModel):
 
 
 class ChaosProfileConfig(BaseModel):
-    mode: Literal["latency", "http_5xx", "abort", "mixed"]
+    mode: Literal["latency", "http_5xx", "http_status", "abort", "mixed", "malformed_json", "timeout_hang"]
     probability: float = 0.2
     seed: int = 42
     latency_ms: LatencyRange = Field(default_factory=LatencyRange)
+    hang_ms: int = 35000
     status_codes: list[int] = Field(default_factory=lambda: [500])
     targets: list[ChaosTarget] = Field(default_factory=list)
 

@@ -49,7 +49,7 @@ jobs:
           day_seed=$(date -u +%Y%m%d)
           if [ "$roll" -lt 30 ]; then
             enable=true
-            profiles=(latency_light checkout_fault fail_hard)
+            profiles=(latency_light checkout_fault rate_limit_burst auth_expired malformed_json timeout_hang resource_block fail_hard)
             pick=$((RANDOM % ${#profiles[@]}))
             profile="${profiles[$pick]}"
             if [ "$strategy" = "fixed" ]; then
@@ -57,6 +57,16 @@ jobs:
                 seed=21
               elif [ "$profile" = "checkout_fault" ]; then
                 seed=7
+              elif [ "$profile" = "rate_limit_burst" ]; then
+                seed=31
+              elif [ "$profile" = "auth_expired" ]; then
+                seed=41
+              elif [ "$profile" = "malformed_json" ]; then
+                seed=51
+              elif [ "$profile" = "timeout_hang" ]; then
+                seed=61
+              elif [ "$profile" = "resource_block" ]; then
+                seed=71
               else
                 seed=99
               fi

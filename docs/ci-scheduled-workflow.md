@@ -14,7 +14,7 @@ This document describes `.github/workflows/ci-scheduled.yml` behavior.
 2. Decide chaos campaign (`enable/profile/seed`) in shell step
 3. Run baseline reliability campaign
 4. Optionally run chaos campaign
-   - fixed lane uses Make targets with stable seeds
+   - fixed lane uses direct CLI command with stable per-profile seeds
    - daily lane uses deterministic date+profile-derived seed
 5. Generate trend report (`reliabilitykit trend --window-days 30`)
 6. Upload run artifacts to GitHub Actions artifacts
@@ -35,8 +35,29 @@ To inspect results, open the specific GitHub Actions run and download the artifa
 
 ## Seed Lanes
 
-- `fixed`: reproducible lane (`latency_light=21`, `checkout_fault=7`)
+- `fixed`: reproducible lane with per-profile stable seeds:
+  - `latency_light=21`
+  - `checkout_fault=7`
+  - `rate_limit_burst=31`
+  - `auth_expired=41`
+  - `malformed_json=51`
+  - `timeout_hang=61`
+  - `resource_block=71`
+  - `fail_hard=99`
 - `daily`: deterministic rotating lane based on UTC date and profile
+
+## Chaos Profile Rotation
+
+Scheduled chaos campaign randomly selects one profile from the configured CI set:
+
+- `latency_light`
+- `checkout_fault`
+- `rate_limit_burst`
+- `auth_expired`
+- `malformed_json`
+- `timeout_hang`
+- `resource_block`
+- `fail_hard`
 
 ## Current Limitation
 

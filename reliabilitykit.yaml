@@ -44,6 +44,59 @@ chaos:
           url_pattern: "/users"
           methods: ["GET", "POST"]
           resource_types: ["document", "xhr", "fetch"]
+    rate_limit_burst:
+      mode: http_status
+      probability: 0.35
+      seed: 42
+      status_codes: [429]
+      targets:
+        - host: api.practicesoftwaretesting.com
+          url_pattern: "/products"
+          methods: ["GET"]
+          resource_types: ["xhr", "fetch"]
+        - host: api.practicesoftwaretesting.com
+          url_pattern: "/search"
+          methods: ["GET"]
+          resource_types: ["xhr", "fetch"]
+    auth_expired:
+      mode: http_status
+      probability: 0.3
+      seed: 42
+      status_codes: [401, 403]
+      targets:
+        - host: api.practicesoftwaretesting.com
+          url_pattern: "/users"
+          methods: ["GET", "POST", "PATCH"]
+          resource_types: ["xhr", "fetch"]
+    malformed_json:
+      mode: malformed_json
+      probability: 0.25
+      seed: 42
+      status_codes: [200]
+      targets:
+        - host: api.practicesoftwaretesting.com
+          url_pattern: "/products"
+          methods: ["GET"]
+          resource_types: ["xhr", "fetch"]
+    timeout_hang:
+      mode: timeout_hang
+      probability: 0.25
+      seed: 42
+      hang_ms: 45000
+      targets:
+        - host: api.practicesoftwaretesting.com
+          url_pattern: "/checkout"
+          methods: ["POST"]
+          resource_types: ["xhr", "fetch"]
+    resource_block:
+      mode: abort
+      probability: 0.25
+      seed: 42
+      targets:
+        - host: practicesoftwaretesting.com
+          url_pattern: "/"
+          methods: ["GET"]
+          resource_types: ["script", "stylesheet", "font", "image"]
     fail_hard:
       mode: abort
       probability: 1.0

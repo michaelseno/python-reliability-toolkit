@@ -181,7 +181,12 @@ Use a two-lane seed strategy so runs are both reproducible and exploratory:
 - **CI lane (fixed seeds):** use stable per-profile seeds for reproducible PR triage.
   - `latency_light -> 21`
   - `checkout_fault -> 7`
-  - Make targets: `run-chaos-ci-latency`, `run-chaos-ci-fault`
+  - `rate_limit_burst -> 31`
+  - `auth_expired -> 41`
+  - `malformed_json -> 51`
+  - `timeout_hang -> 61`
+  - `resource_block -> 71`
+  - `fail_hard -> 99`
 - **Scheduled lane (rotating deterministic seeds):** use a date-based seed derived from
   `YYYYMMDD + profile` so each day explores a new pattern, but reruns on the same day/profile
   stay reproducible.
