@@ -18,6 +18,9 @@ jobs:
   e2e-playwright:
     name: E2E Playwright (Python 3.13)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout
@@ -96,6 +99,33 @@ jobs:
       - name: Generate trend report
         if: always()
         run: python -m reliabilitykit.cli.main trend --window-days 30
+
+      - name: Configure AWS credentials (OIDC)
+        if: always()
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::463470948609:role/rk-github-actions-role
+          role-session-name: reliabilitykit-scheduled-ci
+          aws-region: us-east-1
+
+      - name: Sync ReliabilityKit outputs to S3
+        if: always()
+        run: |
+          aws s3 cp .reliabilitykit/dashboard.html s3://rk-reliability/dashboard.html --cache-control "max-age=60" --content-type "text/html"
+          aws s3 cp .reliabilitykit/trend.html s3://rk-reliability/trend.html --cache-control "max-age=60" --content-type "text/html"
+          aws s3 sync .reliabilitykit/index/ s3://rk-reliability/index/ || true
+          aws s3 sync .reliabilitykit/runs/ s3://rk-reliability/runs/
+
+      - name: Publish dashboard URL
+        if: always()
+        run: |
+          {
+            echo "## Reliability Dashboard"
+            echo "- URL: https://rk-reliability.s3.amazonaws.com/dashboard.html"
+            echo "- Chaos enabled: ${{ steps.chaos_decision.outputs.enable }}"
+            echo "- Chaos profile: ${{ steps.chaos_decision.outputs.profile }}"
+            echo "- Chaos seed: ${{ steps.chaos_decision.outputs.seed }}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload reliability artifacts
         if: always()

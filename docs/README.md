@@ -10,6 +10,7 @@ files are compatibility stubs that point here.
 - [Dashboard Operations](dashboard-operations.md)
 - [Seed Strategy](seed-strategy.md)
 - [S3 Architecture Plan](s3-architecture-plan.md)
+- [AWS Phase D Lambda](aws-phase-d-lambda.md)
 
 ## Maintenance Rule
 

@@ -25,6 +25,7 @@ and HTML reports so every run becomes analyzable data.
 - Dashboard operations: `docs/dashboard-operations.md`
 - Seed strategy: `docs/seed-strategy.md`
 - S3 architecture plan: `docs/s3-architecture-plan.md`
+- AWS Lambda dashboard build: `docs/aws-phase-d-lambda.md`
 
 Root-level UPPER_SNAKE_CASE files are compatibility stubs that point to canonical docs in `docs/`.
 
