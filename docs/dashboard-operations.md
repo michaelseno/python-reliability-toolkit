@@ -33,6 +33,23 @@ Dashboard content depends on:
 - `.reliabilitykit/runs/**/run.json`
 - `.reliabilitykit/index/runs_index.jsonl`
 
+## Logs and Trace Artifacts
+
+ReliabilityKit now stores per-test runtime diagnostics in run artifacts:
+
+- `*.console.jsonl`: compacted browser console stream
+- `*.events.jsonl`: compacted page errors and request failures
+- `*.failure_raw.txt`: full raw traceback for failed tests
+- `*.trace.zip`: Playwright trace for failed tests only
+
+Artifact links are available from dashboard and run report test details.
+
+Open traces with Playwright trace viewer:
+
+```bash
+playwright show-trace .reliabilitykit/runs/<YYYY>/<MM>/<DD>/<run_id>/artifacts/<test>.trace.zip
+```
+
 ## CI vs Local
 
 - Local: history accumulates in your workspace unless cleaned.

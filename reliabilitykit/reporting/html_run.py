@@ -361,12 +361,16 @@ RUN_TEMPLATE = Template(
             <p class="failure-meta">Duration: {{ t.duration_ms }} ms | Chaos events: {{ t.chaos_events|length }}</p>
             {% if t.error_message %}
             <details open>
-              <summary>Error details</summary>
+              <summary>Failure summary</summary>
               <pre>{{ t.error_message[:1500] }}</pre>
             </details>
             {% endif %}
             {% if t.artifacts %}
             {% set screenshots = t.artifacts | selectattr("kind", "equalto", "screenshot") | list %}
+            {% set logs = t.artifacts | selectattr("kind", "equalto", "console_log") | list %}
+            {% set event_logs = t.artifacts | selectattr("kind", "equalto", "event_log") | list %}
+            {% set trace_files = t.artifacts | selectattr("kind", "equalto", "trace") | list %}
+            {% set raw_failures = t.artifacts | selectattr("kind", "equalto", "failure_raw") | list %}
             {% if screenshots %}
             <div class="thumb-grid">
               {% for artifact in screenshots %}
@@ -376,6 +380,22 @@ RUN_TEMPLATE = Template(
               </a>
               {% endfor %}
             </div>
+            {% endif %}
+            {% if logs or event_logs or trace_files or raw_failures %}
+            <ul class="list-inline">
+              {% for artifact in logs %}
+              <li><a href="{{ artifact.path }}">console log</a></li>
+              {% endfor %}
+              {% for artifact in event_logs %}
+              <li><a href="{{ artifact.path }}">event log</a></li>
+              {% endfor %}
+              {% for artifact in trace_files %}
+              <li><a href="{{ artifact.path }}">trace</a></li>
+              {% endfor %}
+              {% for artifact in raw_failures %}
+              <li><a href="{{ artifact.path }}">raw failure</a></li>
+              {% endfor %}
+            </ul>
             {% endif %}
             <ul class="list-inline">
               {% for artifact in t.artifacts %}
@@ -443,7 +463,7 @@ RUN_TEMPLATE = Template(
               <th>Status</th>
               <th>Failure Type</th>
               <th>Duration</th>
-              <th>Error</th>
+               <th>Failure Summary</th>
               <th>Artifacts</th>
               <th>Chaos Events</th>
             </tr>

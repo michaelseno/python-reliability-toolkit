@@ -35,7 +35,14 @@ def _run(run_id: str, status: str, duration_ms: int, chaos_profile: str | None =
                 ended_at=ended,
                 duration_ms=400,
                 failure_type="assertion_failure" if status == "failed" else "unknown",
-                error_message="AssertionError: expected value" if status == "failed" else None,
+                error_message=(
+                    "Headline: AssertionError: expected value\n"
+                    "Phase: call\n"
+                    "Location: tests/e2e/test_file.py:20\n"
+                    "Fingerprint: abc123ef45"
+                    if status == "failed"
+                    else None
+                ),
             ),
         ],
     )
@@ -80,3 +87,14 @@ def test_build_trend_metrics_test_reliability_flake_rate() -> None:
     assert reliability_row["pass_rate"] == 66.67
     assert reliability_row["flake_rate"] == 100.0
     assert reliability_row["reliability_score"] < 80.0
+
+
+def test_build_trend_metrics_groups_failure_clusters() -> None:
+    runs = [_run("r1", "failed", 1000), _run("r2", "failed", 1200), _run("r3", "passed", 900)]
+    metrics = build_trend_metrics(runs)
+
+    assert metrics["failure_clusters"]
+    top_cluster = metrics["failure_clusters"][0]
+    assert top_cluster["fingerprint"] == "abc123ef45"
+    assert top_cluster["occurrences"] == 2
+    assert top_cluster["runs_affected"] == 2

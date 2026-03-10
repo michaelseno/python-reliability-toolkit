@@ -352,6 +352,16 @@
 
           <section class="panel section">
             <div class="section-head">
+              <h2>Recurring Failure Clusters</h2>
+              <span class="small">Grouped by digest fingerprint</span>
+            </div>
+            
+            <p class="small">No recurring failure clusters detected yet.</p>
+            
+          </section>
+
+          <section class="panel section">
+            <div class="section-head">
               <h2 id="selected-run-title">Selected Run</h2>
               <div>
                 <button class="btn" id="open-run-report">Open report</button>
@@ -382,7 +392,7 @@
     </div>
 
     <script>
-      const trendData = {"run_count": 1, "pass_rate": 0.0, "run_reliability_avg": 46.0, "p50_duration_ms": 12000, "p95_duration_ms": 12000, "median_duration_ms": 12000, "failure_distribution": {"assertion_failure": 1}, "top_failing_tests": [["tests/e2e/test_file.py::test_fail", 1]], "top_reliability_risks": [{"nodeid": "tests/e2e/test_file.py::test_fail", "executions": 1, "passes": 0, "fails": 1, "pass_rate": 0.0, "fail_rate": 100.0, "flake_rate": 0.0, "chaos_fail_rate": 100.0, "baseline_fail_rate": 0.0, "chaos_sensitivity": 100.0, "duration_cv": 0.0, "failure_diversity": 1, "failure_types": ["assertion_failure"], "reliability_score": 20.0}, {"nodeid": "tests/e2e/test_file.py::test_ok", "executions": 1, "passes": 1, "fails": 0, "pass_rate": 100.0, "fail_rate": 0.0, "flake_rate": 0.0, "chaos_fail_rate": 0.0, "baseline_fail_rate": 0.0, "chaos_sensitivity": 0.0, "duration_cv": 0.0, "failure_diversity": 0, "failure_types": [], "reliability_score": 100.0}], "test_reliability": [{"nodeid": "tests/e2e/test_file.py::test_fail", "executions": 1, "passes": 0, "fails": 1, "pass_rate": 0.0, "fail_rate": 100.0, "flake_rate": 0.0, "chaos_fail_rate": 100.0, "baseline_fail_rate": 0.0, "chaos_sensitivity": 100.0, "duration_cv": 0.0, "failure_diversity": 1, "failure_types": ["assertion_failure"], "reliability_score": 20.0}, {"nodeid": "tests/e2e/test_file.py::test_ok", "executions": 1, "passes": 1, "fails": 0, "pass_rate": 100.0, "fail_rate": 0.0, "flake_rate": 0.0, "chaos_fail_rate": 0.0, "baseline_fail_rate": 0.0, "chaos_sensitivity": 0.0, "duration_cv": 0.0, "failure_diversity": 0, "failure_types": [], "reliability_score": 100.0}], "chaos_summary": {"chaos": {"runs": 1, "passed": 0, "failed": 1, "pass_rate": 0.0}, "baseline": {"runs": 0, "passed": 0, "failed": 0, "pass_rate": 0.0}}, "series": [{"run_id": "20260303T120000Z-golden01", "started_at": "2026-03-03T12:00:00+00:00", "status": "failed", "duration_ms": 12000, "failed": 1, "pass_rate": 50.0, "run_reliability_score": 46.0, "chaos_profile": "checkout_fault", "report_path": "runs/2026/03/03/20260303T120000Z-golden01/report.html", "run_json_path": "runs/2026/03/03/20260303T120000Z-golden01/run.json"}]};
+      const trendData = {"run_count": 1, "pass_rate": 0.0, "run_reliability_avg": 46.0, "p50_duration_ms": 12000, "p95_duration_ms": 12000, "median_duration_ms": 12000, "failure_distribution": {"assertion_failure": 1}, "top_failing_tests": [["tests/e2e/test_file.py::test_fail", 1]], "top_reliability_risks": [{"nodeid": "tests/e2e/test_file.py::test_fail", "executions": 1, "passes": 0, "fails": 1, "pass_rate": 0.0, "fail_rate": 100.0, "flake_rate": 0.0, "chaos_fail_rate": 100.0, "baseline_fail_rate": 0.0, "chaos_sensitivity": 100.0, "duration_cv": 0.0, "failure_diversity": 1, "failure_types": ["assertion_failure"], "reliability_score": 20.0}, {"nodeid": "tests/e2e/test_file.py::test_ok", "executions": 1, "passes": 1, "fails": 0, "pass_rate": 100.0, "fail_rate": 0.0, "flake_rate": 0.0, "chaos_fail_rate": 0.0, "baseline_fail_rate": 0.0, "chaos_sensitivity": 0.0, "duration_cv": 0.0, "failure_diversity": 0, "failure_types": [], "reliability_score": 100.0}], "failure_clusters": [], "test_reliability": [{"nodeid": "tests/e2e/test_file.py::test_fail", "executions": 1, "passes": 0, "fails": 1, "pass_rate": 0.0, "fail_rate": 100.0, "flake_rate": 0.0, "chaos_fail_rate": 100.0, "baseline_fail_rate": 0.0, "chaos_sensitivity": 100.0, "duration_cv": 0.0, "failure_diversity": 1, "failure_types": ["assertion_failure"], "reliability_score": 20.0}, {"nodeid": "tests/e2e/test_file.py::test_ok", "executions": 1, "passes": 1, "fails": 0, "pass_rate": 100.0, "fail_rate": 0.0, "flake_rate": 0.0, "chaos_fail_rate": 0.0, "baseline_fail_rate": 0.0, "chaos_sensitivity": 0.0, "duration_cv": 0.0, "failure_diversity": 0, "failure_types": [], "reliability_score": 100.0}], "chaos_summary": {"chaos": {"runs": 1, "passed": 0, "failed": 1, "pass_rate": 0.0}, "baseline": {"runs": 0, "passed": 0, "failed": 0, "pass_rate": 0.0}}, "series": [{"run_id": "20260303T120000Z-golden01", "started_at": "2026-03-03T12:00:00+00:00", "status": "failed", "duration_ms": 12000, "failed": 1, "pass_rate": 50.0, "run_reliability_score": 46.0, "chaos_profile": "checkout_fault", "report_path": "runs/2026/03/03/20260303T120000Z-golden01/report.html", "run_json_path": "runs/2026/03/03/20260303T120000Z-golden01/run.json"}]};
       const runsById = new Map(Object.entries({"20260303T120000Z-golden01": {"schema_version": "1.0", "run_id": "20260303T120000Z-golden01", "project": "reliability-toolkit", "started_at": "2026-03-03T12:00:00Z", "ended_at": "2026-03-03T12:00:12Z", "duration_ms": 12000, "status": "failed", "environment": {"os": "Darwin 24.3.0", "python_version": "3.13.2", "playwright_version": null, "pytest_version": "9.0.2", "git_sha": null, "branch": null, "host": "dev-machine", "is_ci": false, "ci_provider": null, "ci_run_id": null, "ci_job_id": null, "ci_job_url": null}, "chaos_profile": "checkout_fault", "chaos_seed": 7, "tests": [{"nodeid": "tests/e2e/test_file.py::test_ok", "name": "test_ok", "status": "passed", "started_at": "2026-03-03T12:00:00Z", "ended_at": "2026-03-03T12:00:00Z", "duration_ms": 200, "browser": "chromium", "retry_index": 0, "error_message": null, "failure_type": "unknown", "classification_confidence": 0.0, "artifacts": [], "chaos_events": []}, {"nodeid": "tests/e2e/test_file.py::test_fail", "name": "test_fail", "status": "failed", "started_at": "2026-03-03T12:00:00Z", "ended_at": "2026-03-03T12:00:12Z", "duration_ms": 500, "browser": "chromium", "retry_index": 0, "error_message": "AssertionError: expected value", "failure_type": "assertion_failure", "classification_confidence": 0.9, "artifacts": [], "chaos_events": []}]}}));
       const runSeries = (trendData.series || []).slice().sort((a, b) => b.started_at.localeCompare(a.started_at));
       const runJsonPathById = new Map(runSeries.map((row) => [row.run_id, row.run_json_path]));
@@ -436,6 +446,40 @@
         const base = runJsonPath.endsWith("/run.json") ? runJsonPath.slice(0, -9) : "";
         if (clean.startsWith("artifacts/") && base) return `${base}/${clean}`;
         return clean;
+      }
+
+      function isLogArtifact(kind) {
+        const normalized = String(kind || "").toLowerCase();
+        return normalized === "console_log" || normalized === "event_log" || normalized === "failure_raw";
+      }
+
+      function isTraceArtifact(kind) {
+        return String(kind || "").toLowerCase() === "trace";
+      }
+
+      function isScreenshotArtifact(kind) {
+        return String(kind || "").toLowerCase() === "screenshot";
+      }
+
+      async function previewLog(detailId, href) {
+        if (!href) return;
+        const container = document.getElementById(`log-preview-${detailId}`);
+        if (!container) return;
+        container.textContent = "Loading log preview...";
+        try {
+          const response = await fetch(href);
+          if (!response.ok) {
+            container.textContent = `Unable to load preview (${response.status}).`;
+            return;
+          }
+          const text = await response.text();
+          const lines = text.split("
+").slice(0, 25).join("
+");
+          container.textContent = lines || "(empty log file)";
+        } catch (error) {
+          container.textContent = "Preview unavailable in this environment.";
+        }
       }
 
       function getFilteredRuns() {
@@ -538,15 +582,28 @@
           const detailId = `detail-${index}`;
 
           const artifacts = Array.isArray(test.artifacts) ? test.artifacts : [];
-          const artifactHtml = artifacts.length
-            ? `<div class="artifact-grid">${artifacts.map((artifact) => {
+          const screenshotArtifacts = artifacts.filter((artifact) => isScreenshotArtifact(artifact.kind));
+          const logArtifacts = artifacts.filter((artifact) => isLogArtifact(artifact.kind));
+          const traceArtifacts = artifacts.filter((artifact) => isTraceArtifact(artifact.kind));
+
+          const artifactHtml = screenshotArtifacts.length
+            ? `<div class="artifact-grid">${screenshotArtifacts.map((artifact) => {
                 const href = artifactHref(run.run_id, artifact.path || "");
-                const isImage = (artifact.kind || "").toLowerCase() === "screenshot";
-                return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${
-                  isImage ? `<img src="${esc(href)}" alt="${esc(test.nodeid)}" />` : ""
-                }<div style="padding:6px 8px;font-size:11px;">${esc(artifact.kind || "artifact")}</div></a>`;
+                return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer"><img src="${esc(href)}" alt="${esc(test.nodeid)}" /><div style="padding:6px 8px;font-size:11px;">${esc(artifact.kind || "artifact")}</div></a>`;
               }).join("")}</div>`
-            : '<p class="small">No artifacts.</p>';
+            : '<p class="small">No screenshot artifacts.</p>';
+
+          const logLinks = [...logArtifacts, ...traceArtifacts].map((artifact, artifactIndex) => {
+            const href = artifactHref(run.run_id, artifact.path || "");
+            const button = isTraceArtifact(artifact.kind)
+              ? ""
+              : `<button class="btn" data-preview-target="${esc(detailId)}" data-preview-href="${esc(href)}">Preview</button>`;
+            return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;"><a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(artifact.kind || "artifact")} ${artifactIndex + 1}</a>${button}</div>`;
+          }).join("");
+
+          const logsHtml = logLinks
+            ? `<div>${logLinks}</div><pre id="log-preview-${esc(detailId)}">Select a log artifact preview.</pre>`
+            : '<p class="small">No logs or trace artifacts.</p>';
 
           const errorHtml = test.error_message ? `<pre>${esc(String(test.error_message))}</pre>` : '<p class="small">No error details.</p>';
 
@@ -559,9 +616,11 @@
             </tr>
             <tr id="${detailId}" class="detail-row">
               <td colspan="4" class="detail-box">
-                <strong>Error Details</strong>
+                <strong>Failure Summary</strong>
                 ${errorHtml}
-                <div style="margin-top:8px;"><strong>Artifacts</strong></div>
+                <div style="margin-top:8px;"><strong>Logs & Trace</strong></div>
+                ${logsHtml}
+                <div style="margin-top:8px;"><strong>Screenshots</strong></div>
                 ${artifactHtml}
               </td>
             </tr>
@@ -573,6 +632,15 @@
             const detailId = row.dataset.detailId;
             const detail = document.getElementById(detailId);
             if (detail) detail.classList.toggle("open");
+          });
+        }
+
+        for (const button of tbody.querySelectorAll("button[data-preview-href]")) {
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            const detailId = button.dataset.previewTarget;
+            const href = button.dataset.previewHref;
+            previewLog(detailId, href);
           });
         }
       }

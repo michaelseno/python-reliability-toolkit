@@ -358,6 +358,37 @@ DASHBOARD_TEMPLATE = Template(
 
           <section class="panel section">
             <div class="section-head">
+              <h2>Recurring Failure Clusters</h2>
+              <span class="small">Grouped by digest fingerprint</span>
+            </div>
+            {% if metrics.failure_clusters %}
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Fingerprint</th><th>Occurrences</th><th>Runs</th><th>Type</th><th>Top Tests</th></tr></thead>
+                <tbody>
+                {% for row in metrics.failure_clusters %}
+                  <tr>
+                    <td><code>{{ row.fingerprint }}</code></td>
+                    <td>{{ row.occurrences }}</td>
+                    <td>{{ row.runs_affected }}</td>
+                    <td>{{ row.failure_type }}</td>
+                    <td>
+                      {% for test in row.top_tests %}
+                        <div>{{ test.nodeid }} ({{ test.count }})</div>
+                      {% endfor %}
+                    </td>
+                  </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <p class="small">No recurring failure clusters detected yet.</p>
+            {% endif %}
+          </section>
+
+          <section class="panel section">
+            <div class="section-head">
               <h2 id="selected-run-title">Selected Run</h2>
               <div>
                 <button class="btn" id="open-run-report">Open report</button>
@@ -442,6 +473,38 @@ DASHBOARD_TEMPLATE = Template(
         const base = runJsonPath.endsWith("/run.json") ? runJsonPath.slice(0, -9) : "";
         if (clean.startsWith("artifacts/") && base) return `${base}/${clean}`;
         return clean;
+      }
+
+      function isLogArtifact(kind) {
+        const normalized = String(kind || "").toLowerCase();
+        return normalized === "console_log" || normalized === "event_log" || normalized === "failure_raw";
+      }
+
+      function isTraceArtifact(kind) {
+        return String(kind || "").toLowerCase() === "trace";
+      }
+
+      function isScreenshotArtifact(kind) {
+        return String(kind || "").toLowerCase() === "screenshot";
+      }
+
+      async function previewLog(detailId, href) {
+        if (!href) return;
+        const container = document.getElementById(`log-preview-${detailId}`);
+        if (!container) return;
+        container.textContent = "Loading log preview...";
+        try {
+          const response = await fetch(href);
+          if (!response.ok) {
+            container.textContent = `Unable to load preview (${response.status}).`;
+            return;
+          }
+          const text = await response.text();
+          const lines = text.split("\n").slice(0, 25).join("\n");
+          container.textContent = lines || "(empty log file)";
+        } catch (error) {
+          container.textContent = "Preview unavailable in this environment.";
+        }
       }
 
       function getFilteredRuns() {
@@ -544,15 +607,28 @@ DASHBOARD_TEMPLATE = Template(
           const detailId = `detail-${index}`;
 
           const artifacts = Array.isArray(test.artifacts) ? test.artifacts : [];
-          const artifactHtml = artifacts.length
-            ? `<div class="artifact-grid">${artifacts.map((artifact) => {
+          const screenshotArtifacts = artifacts.filter((artifact) => isScreenshotArtifact(artifact.kind));
+          const logArtifacts = artifacts.filter((artifact) => isLogArtifact(artifact.kind));
+          const traceArtifacts = artifacts.filter((artifact) => isTraceArtifact(artifact.kind));
+
+          const artifactHtml = screenshotArtifacts.length
+            ? `<div class="artifact-grid">${screenshotArtifacts.map((artifact) => {
                 const href = artifactHref(run.run_id, artifact.path || "");
-                const isImage = (artifact.kind || "").toLowerCase() === "screenshot";
-                return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${
-                  isImage ? `<img src="${esc(href)}" alt="${esc(test.nodeid)}" />` : ""
-                }<div style=\"padding:6px 8px;font-size:11px;\">${esc(artifact.kind || "artifact")}</div></a>`;
+                return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer"><img src="${esc(href)}" alt="${esc(test.nodeid)}" /><div style=\"padding:6px 8px;font-size:11px;\">${esc(artifact.kind || "artifact")}</div></a>`;
               }).join("")}</div>`
-            : '<p class="small">No artifacts.</p>';
+            : '<p class="small">No screenshot artifacts.</p>';
+
+          const logLinks = [...logArtifacts, ...traceArtifacts].map((artifact, artifactIndex) => {
+            const href = artifactHref(run.run_id, artifact.path || "");
+            const button = isTraceArtifact(artifact.kind)
+              ? ""
+              : `<button class=\"btn\" data-preview-target=\"${esc(detailId)}\" data-preview-href=\"${esc(href)}\">Preview</button>`;
+            return `<div style=\"display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;\"><a href=\"${esc(href)}\" target=\"_blank\" rel=\"noopener noreferrer\">${esc(artifact.kind || "artifact")} ${artifactIndex + 1}</a>${button}</div>`;
+          }).join("");
+
+          const logsHtml = logLinks
+            ? `<div>${logLinks}</div><pre id="log-preview-${esc(detailId)}">Select a log artifact preview.</pre>`
+            : '<p class="small">No logs or trace artifacts.</p>';
 
           const errorHtml = test.error_message ? `<pre>${esc(String(test.error_message))}</pre>` : '<p class="small">No error details.</p>';
 
@@ -565,9 +641,11 @@ DASHBOARD_TEMPLATE = Template(
             </tr>
             <tr id="${detailId}" class="detail-row">
               <td colspan="4" class="detail-box">
-                <strong>Error Details</strong>
+                <strong>Failure Summary</strong>
                 ${errorHtml}
-                <div style="margin-top:8px;"><strong>Artifacts</strong></div>
+                <div style="margin-top:8px;"><strong>Logs & Trace</strong></div>
+                ${logsHtml}
+                <div style="margin-top:8px;"><strong>Screenshots</strong></div>
                 ${artifactHtml}
               </td>
             </tr>
@@ -579,6 +657,15 @@ DASHBOARD_TEMPLATE = Template(
             const detailId = row.dataset.detailId;
             const detail = document.getElementById(detailId);
             if (detail) detail.classList.toggle("open");
+          });
+        }
+
+        for (const button of tbody.querySelectorAll("button[data-preview-href]")) {
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            const detailId = button.dataset.previewTarget;
+            const href = button.dataset.previewHref;
+            previewLog(detailId, href);
           });
         }
       }

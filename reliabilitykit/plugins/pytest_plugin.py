@@ -6,11 +6,13 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 from typing import Any
 
 import pytest
 
 from reliabilitykit.core.classifier import classify_failure
+from reliabilitykit.core.failure_digest import build_failure_digest
 from reliabilitykit.core.models import ArtifactRef, ChaosEvent, TestRecord
 
 
@@ -20,6 +22,7 @@ class TestState:
     ended_at: datetime | None = None
     status: str | None = None
     error_message: str | None = None
+    raw_error_message: str | None = None
     artifacts: list[ArtifactRef] = field(default_factory=list)
     chaos_events: list[ChaosEvent] = field(default_factory=list)
 
@@ -33,15 +36,18 @@ class ReliabilityPytestPlugin:
         self._states: dict[str, TestState] = {}
         self._runtime_dir = self.run_dir / ".runtime_records"
         self._context_dir = self.run_dir / ".runtime_context"
+        self._artifacts_dir = self.run_dir / "artifacts"
         self._runtime_dir.mkdir(parents=True, exist_ok=True)
         self._context_dir.mkdir(parents=True, exist_ok=True)
+        self._artifacts_dir.mkdir(parents=True, exist_ok=True)
         self._worker_id = os.getenv("PYTEST_XDIST_WORKER", "master")
         self._runtime_file = self._runtime_dir / f"{self._worker_id}-{os.getpid()}.jsonl"
 
     def _build_record(self, nodeid: str, state: TestState) -> TestRecord | None:
         if not state.started_at or not state.ended_at or not state.status:
             return None
-        failure_type, confidence = classify_failure(state.error_message)
+        classify_source = state.raw_error_message or state.error_message
+        failure_type, confidence = classify_failure(classify_source)
         return TestRecord(
             nodeid=nodeid,
             name=nodeid.split("::")[-1],
@@ -56,6 +62,19 @@ class ReliabilityPytestPlugin:
             artifacts=state.artifacts,
             chaos_events=state.chaos_events,
         )
+
+    def _safe_nodeid(self, nodeid: str) -> str:
+        sanitized = re.sub(r"[^A-Za-z0-9._-]+", "_", nodeid).strip("_")
+        if not sanitized:
+            sanitized = hashlib.sha1(nodeid.encode("utf-8")).hexdigest()[:12]
+        return sanitized[-160:]
+
+    def _write_failure_raw_artifact(self, nodeid: str, raw_error: str) -> ArtifactRef:
+        safe = self._safe_nodeid(nodeid)
+        path = self._artifacts_dir / f"{safe}.failure_raw.txt"
+        path.write_text(raw_error, encoding="utf-8")
+        relative = path.relative_to(self.run_dir)
+        return ArtifactRef(kind="failure_raw", path=str(relative), size_bytes=path.stat().st_size)
 
     def _append_runtime_record(self, record: TestRecord) -> None:
         payload = record.model_dump(mode="json")
@@ -172,11 +191,21 @@ class ReliabilityPytestPlugin:
                 state.started_at = state.ended_at - timedelta(seconds=max(duration_seconds, 0.0))
             if report.passed:
                 state.status = "passed"
+                state.error_message = None
+                state.raw_error_message = None
             elif report.failed:
                 state.status = "failed"
-                state.error_message = str(report.longrepr)
+                raw_error = str(report.longrepr)
+                state.raw_error_message = raw_error
+                digest, _ = build_failure_digest(report.nodeid, report.when, raw_error)
+                state.error_message = digest
+                raw_artifact = self._write_failure_raw_artifact(report.nodeid, raw_error)
+                if not any(a.kind == "failure_raw" and a.path == raw_artifact.path for a in state.artifacts):
+                    state.artifacts.append(raw_artifact)
             elif report.skipped:
                 state.status = "skipped"
+                state.error_message = None
+                state.raw_error_message = None
         elif state.ended_at is None:
             state.ended_at = datetime.now(UTC)
 

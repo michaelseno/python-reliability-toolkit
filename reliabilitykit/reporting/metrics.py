@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+import re
 from statistics import mean, median, pstdev
 
 from reliabilitykit.core.models import RunRecord
@@ -25,6 +26,61 @@ def _percentile(values: list[int], percentile: float) -> int:
     high = min(low + 1, len(sorted_values) - 1)
     fraction = rank - low
     return int(sorted_values[low] + (sorted_values[high] - sorted_values[low]) * fraction)
+
+
+def _extract_failure_fingerprint(error_message: str | None) -> str | None:
+    if not error_message:
+        return None
+    match = re.search(r"^Fingerprint:\s*([0-9a-f]{6,40})\s*$", error_message, re.MULTILINE | re.IGNORECASE)
+    if not match:
+        return None
+    return match.group(1).lower()
+
+
+def _build_failure_clusters(runs: list[RunRecord]) -> list[dict]:
+    cluster_map: dict[str, dict] = {}
+    for run in runs:
+        for test in run.tests:
+            if test.status != "failed":
+                continue
+            fingerprint = _extract_failure_fingerprint(test.error_message)
+            if not fingerprint:
+                continue
+
+            row = cluster_map.setdefault(
+                fingerprint,
+                {
+                    "fingerprint": fingerprint,
+                    "occurrences": 0,
+                    "failure_types": Counter(),
+                    "tests": Counter(),
+                    "runs": set(),
+                },
+            )
+            row["occurrences"] += 1
+            row["failure_types"][test.failure_type] += 1
+            row["tests"][test.nodeid] += 1
+            row["runs"].add(run.run_id)
+
+    output: list[dict] = []
+    for row in cluster_map.values():
+        top_failure_type = row["failure_types"].most_common(1)[0][0] if row["failure_types"] else "unknown"
+        output.append(
+            {
+                "fingerprint": row["fingerprint"],
+                "occurrences": row["occurrences"],
+                "failure_type": top_failure_type,
+                "tests_affected": len(row["tests"]),
+                "runs_affected": len(row["runs"]),
+                "top_tests": [
+                    {"nodeid": nodeid, "count": count}
+                    for nodeid, count in row["tests"].most_common(3)
+                ],
+            }
+        )
+
+    output.sort(key=lambda item: (-item["occurrences"], -item["runs_affected"], item["fingerprint"]))
+    return output[:10]
 
 
 def _compute_test_reliability(runs: list[RunRecord]) -> list[dict]:
@@ -158,6 +214,7 @@ def build_trend_metrics(runs: list[RunRecord]) -> dict:
             "failure_distribution": {},
             "top_failing_tests": [],
             "top_reliability_risks": [],
+            "failure_clusters": [],
             "test_reliability": [],
             "chaos_summary": {
                 "chaos": {"runs": 0, "passed": 0, "failed": 0, "pass_rate": 0.0},
@@ -193,6 +250,7 @@ def build_trend_metrics(runs: list[RunRecord]) -> dict:
 
     test_reliability = _compute_test_reliability(ordered_runs)
     top_reliability_risks = test_reliability[:10]
+    failure_clusters = _build_failure_clusters(ordered_runs)
     test_reliability_lookup = {
         row["nodeid"]: row["reliability_score"] for row in test_reliability
     }
@@ -276,6 +334,7 @@ def build_trend_metrics(runs: list[RunRecord]) -> dict:
         "failure_distribution": dict(sorted(failure_distribution.items())),
         "top_failing_tests": top_failing_tests,
         "top_reliability_risks": top_reliability_risks,
+        "failure_clusters": failure_clusters,
         "test_reliability": test_reliability,
         "chaos_summary": {
             "chaos": summarize(chaos_runs),

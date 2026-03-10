@@ -88,8 +88,14 @@ def test_plugin_writes_final_record_with_artifacts_on_teardown(tmp_path: Path) -
     records = plugin.records
     assert len(records) == 1
     assert records[0].failure_type == "network_error"
+    assert records[0].error_message is not None
+    assert "Headline:" in records[0].error_message
     assert records[0].artifacts
-    assert records[0].artifacts[0].kind == "screenshot"
+    assert any(artifact.kind == "screenshot" for artifact in records[0].artifacts)
+    raw_failure_artifacts = [artifact for artifact in records[0].artifacts if artifact.kind == "failure_raw"]
+    assert raw_failure_artifacts
+    raw_failure_path = run_dir / raw_failure_artifacts[0].path
+    assert raw_failure_path.exists()
 
 
 def test_plugin_merges_runtime_context_entries(tmp_path: Path) -> None:
