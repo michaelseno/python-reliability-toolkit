@@ -33,6 +33,14 @@ Dashboard content depends on:
 - `.reliabilitykit/runs/**/run.json`
 - `.reliabilitykit/index/runs_index.jsonl`
 
+When served from S3, dashboard also attempts to hydrate from:
+
+- `index/latest_runs.json`
+- `index/window_analytics_30d.json`
+
+If these index files are present, sidebar run history and trend chart can include a fuller
+S3-backed history beyond the runs embedded at build time.
+
 ## Logs and Trace Artifacts
 
 ReliabilityKit now stores per-test runtime diagnostics in run artifacts:
