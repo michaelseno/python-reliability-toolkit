@@ -418,10 +418,41 @@
         return Math.round((Number(value) || 0) * 100) / 100;
       }
 
+      function toNumber(value) {
+        if (typeof value === "number" && Number.isFinite(value)) return value;
+        if (typeof value === "string") {
+          const cleaned = value.trim().replace(/%$/, "");
+          const parsed = Number.parseFloat(cleaned);
+          if (Number.isFinite(parsed)) return parsed;
+        }
+        return 0;
+      }
+
       function toInt(value) {
-        const parsed = Number(value);
+        const parsed = toNumber(value);
         if (Number.isFinite(parsed)) return Math.round(parsed);
         return 0;
+      }
+
+      function deriveRunJsonPath(runId, startedAt) {
+        if (!runId) return "";
+        const fromDate = (date) => {
+          if (!date || Number.isNaN(date.getTime())) return "";
+          const yyyy = String(date.getUTCFullYear()).padStart(4, "0");
+          const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+          const dd = String(date.getUTCDate()).padStart(2, "0");
+          return `runs/${yyyy}/${mm}/${dd}/${runId}/run.json`;
+        };
+
+        const started = startedAt ? new Date(startedAt) : null;
+        if (started && !Number.isNaN(started.getTime())) {
+          return fromDate(started);
+        }
+
+        const match = /^([0-9]{4})([0-9]{2})([0-9]{2})T/.exec(String(runId));
+        if (!match) return "";
+        const [, y, m, d] = match;
+        return `runs/${y}/${m}/${d}/${runId}/run.json`;
       }
 
       function recomputePassRate(run) {
@@ -438,13 +469,10 @@
         const runId = run?.run_id || run?.runId || "unknown-run";
 
         if (!runJsonPathById.get(runId) && startedAt) {
-          const started = new Date(startedAt);
-          if (!Number.isNaN(started.getTime())) {
-            const yyyy = String(started.getUTCFullYear()).padStart(4, "0");
-            const mm = String(started.getUTCMonth() + 1).padStart(2, "0");
-            const dd = String(started.getUTCDate()).padStart(2, "0");
-            runJsonPathById.set(runId, `runs/${yyyy}/${mm}/${dd}/${runId}/run.json`);
-            runReportPathById.set(runId, `runs/${yyyy}/${mm}/${dd}/${runId}/report.html`);
+          const path = deriveRunJsonPath(runId, startedAt);
+          if (path) {
+            runJsonPathById.set(runId, path);
+            runReportPathById.set(runId, path.replace(/run\.json$/, "report.html"));
           }
         }
 
@@ -455,7 +483,7 @@
           duration_ms: toInt(run?.duration_ms),
           failed,
           pass_rate: passRate,
-          run_reliability_score: Number(run?.run_reliability_score || run?.reliability_score || passRate),
+          run_reliability_score: toNumber(run?.run_reliability_score || run?.reliability_score || passRate),
           chaos_profile: run?.chaos_profile || "none",
           report_path: runReportPathById.get(runId) || run?.report_path || "",
           run_json_path: runJsonPathById.get(runId) || run?.run_json_path || "",
@@ -465,9 +493,9 @@
       function refreshKpisFromSeries() {
         const runs = runSeries;
         const runCount = runs.length;
-        const avgPassRate = runCount ? round2(runs.reduce((acc, row) => acc + Number(row.pass_rate || 0), 0) / runCount) : 0;
+        const avgPassRate = runCount ? round2(runs.reduce((acc, row) => acc + toNumber(row.pass_rate || 0), 0) / runCount) : 0;
         const avgReliability = runCount
-          ? round2(runs.reduce((acc, row) => acc + Number(row.run_reliability_score || 0), 0) / runCount)
+          ? round2(runs.reduce((acc, row) => acc + toNumber(row.run_reliability_score || 0), 0) / runCount)
           : 0;
 
         const durations = runs
@@ -504,9 +532,9 @@
           if (!row || !row.run_id) continue;
           const normalized = {
             ...row,
-            failed: Number(row.failed || 0),
-            pass_rate: Number(row.pass_rate || 0),
-            run_reliability_score: Number(row.run_reliability_score || 0),
+            failed: toNumber(row.failed || 0),
+            pass_rate: toNumber(row.pass_rate || 0),
+            run_reliability_score: toNumber(row.run_reliability_score || 0),
             chaos_profile: row.chaos_profile || "none",
           };
           byId.set(normalized.run_id, normalized);
@@ -543,9 +571,9 @@
               duration_ms: toInt(row.duration_ms),
               failed: toInt(row.failed),
               pass_rate: Number(row.pass_rate || 0),
-              run_reliability_score: Number(row.run_reliability_score || row.reliability_score || 0),
+              run_reliability_score: toNumber(row.run_reliability_score || row.reliability_score || 0),
               chaos_profile: chaosProfile,
-              run_json_path: runJsonPath || runJsonPathById.get(runId) || "",
+              run_json_path: runJsonPath || runJsonPathById.get(runId) || deriveRunJsonPath(runId, startedAt),
               report_path: reportPath || runReportPathById.get(runId) || "",
             };
           }).filter((row) => row.run_id);
@@ -559,6 +587,32 @@
         }
 
         refreshKpisFromSeries();
+      }
+
+      async function backfillSeriesFromRunJson(limit = 80) {
+        const candidates = runSeries.slice(0, limit);
+        const updates = [];
+        for (const row of candidates) {
+          const runId = row.run_id;
+          const existing = runsById.get(runId);
+          if (existing) {
+            updates.push(seriesRowFromRun(existing));
+            continue;
+          }
+
+          const runJsonPath = row.run_json_path || runJsonPathById.get(runId) || deriveRunJsonPath(runId, row.started_at);
+          if (!runJsonPath) continue;
+          const payload = await fetchJson(runJsonPath);
+          if (!payload || !payload.run_id) continue;
+          runsById.set(payload.run_id, payload);
+          runJsonPathById.set(payload.run_id, runJsonPath);
+          runReportPathById.set(payload.run_id, runJsonPath.replace(/run\.json$/, "report.html"));
+          updates.push(seriesRowFromRun(payload));
+        }
+        if (updates.length) {
+          ingestSeriesRows(updates);
+          refreshKpisFromSeries();
+        }
       }
 
       async function ensureRunLoaded(runId) {
@@ -706,7 +760,12 @@
         if (!run) {
           run = await ensureRunLoaded(selectedRunId);
         }
-        if (!run) return;
+        if (!run) {
+          document.getElementById("selected-run-title").textContent = `Selected Run: ${selectedRunId}`;
+          document.getElementById("selected-run-meta").textContent = "Run details unavailable (run.json not found yet).";
+          document.getElementById("selected-tests-body").innerHTML = "";
+          return;
+        }
 
         const summary = summarizeRun(run);
         document.getElementById("selected-run-title").textContent = `Selected Run: ${run.run_id}`;
@@ -923,6 +982,7 @@
 
       async function bootstrapDashboard() {
         await hydrateFromS3Index();
+        await backfillSeriesFromRunJson();
         wireEvents();
         renderRunSidebar();
         await renderSelectedRun();

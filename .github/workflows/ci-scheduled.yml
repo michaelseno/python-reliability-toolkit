@@ -79,7 +79,7 @@ jobs:
           echo "make_target=$make_target" >> "$GITHUB_OUTPUT"
 
       - name: Run baseline reliability campaign
-        run: python -m reliabilitykit.cli.main run --workers 2 -- tests/e2e -v
+        run: python -m reliabilitykit.cli.main run --workers 4 -- tests/e2e -v
 
       - name: Run chaos reliability campaign (fixed-seed lane)
         if: steps.chaos_decision.outputs.enable == 'true' && steps.chaos_decision.outputs.strategy == 'fixed'
@@ -91,10 +91,10 @@ jobs:
         continue-on-error: true
         run: |
           python -m reliabilitykit.cli.main run \
-            --workers 2 \
+            --workers 4 \
             --chaos "${{ steps.chaos_decision.outputs.profile }}" \
             --seed "${{ steps.chaos_decision.outputs.seed }}" \
-            -- tests/e2e -m chaos -v
+            -- tests/e2e -v
 
       - name: Generate trend report
         if: always()
