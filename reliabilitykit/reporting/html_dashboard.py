@@ -500,7 +500,7 @@ DASHBOARD_TEMPLATE = Template(
             return;
           }
           const text = await response.text();
-          const lines = text.split("\n").slice(0, 25).join("\n");
+          const lines = text.split("\\n").slice(0, 25).join("\\n");
           container.textContent = lines || "(empty log file)";
         } catch (error) {
           container.textContent = "Preview unavailable in this environment.";
