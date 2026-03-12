@@ -76,6 +76,14 @@ DASHBOARD_TEMPLATE = Template(
       .muted { color: var(--muted); }
       .small { margin: 0; font-size: 12px; color: var(--muted); }
 
+      .small.badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.04);
+      }
+
       .top-head {
         margin-bottom: 10px;
       }
@@ -270,6 +278,9 @@ DASHBOARD_TEMPLATE = Template(
         color: #e7eefc;
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         font-size: 12px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
       }
 
       @media (max-width: 1180px) {
@@ -293,11 +304,11 @@ DASHBOARD_TEMPLATE = Template(
           </div>
 
           <div class="toolbar" id="timeframe-buttons">
-            <button class="btn active" data-days="7">7d</button>
+            <button class="btn" data-days="7">7d</button>
             <button class="btn" data-days="14">14d</button>
             <button class="btn" data-days="30">30d</button>
             <button class="btn" data-days="90">90d</button>
-            <button class="btn" data-days="all">All</button>
+            <button class="btn active" data-days="all">All</button>
           </div>
 
           <input id="run-search" class="search" placeholder="Search run id or profile" />
@@ -307,6 +318,10 @@ DASHBOARD_TEMPLATE = Template(
 
         <main class="main">
           <section class="panel analytics">
+            <div class="section-head" style="margin-bottom:10px;">
+              <h2>Window Analytics</h2>
+              <span class="small badge" id="analytics-coverage-badge">Loaded details 0/0 runs</span>
+            </div>
             <div class="kpis">
               <article class="card"><p class="label">Runs</p><p class="value" id="kpi-runs">{{ metrics.run_count }}</p></article>
               <article class="card"><p class="label">Window Pass Rate</p><p class="value" id="kpi-pass-rate">{{ metrics.pass_rate }}%</p></article>
@@ -334,26 +349,23 @@ DASHBOARD_TEMPLATE = Template(
               <h2>Least Reliable Tests (Top 10)</h2>
               <span class="small">Rolling risk ranking</span>
             </div>
-            {% if metrics.top_reliability_risks %}
             <div class="table-wrap">
               <table>
                 <thead><tr><th>Test</th><th>Reliability</th><th>Pass Rate</th><th>Flake Rate</th><th>Chaos Sensitivity</th></tr></thead>
-                <tbody>
-                {% for row in metrics.top_reliability_risks %}
-                  <tr>
-                    <td>{{ row.nodeid }}</td>
-                    <td>{{ row.reliability_score }}%</td>
-                    <td>{{ row.pass_rate }}%</td>
-                    <td>{{ row.flake_rate }}%</td>
-                    <td>{{ row.chaos_sensitivity }}%</td>
-                  </tr>
-                {% endfor %}
+                <tbody id="reliability-risk-body">
+                  {% for row in metrics.top_reliability_risks %}
+                    <tr>
+                      <td>{{ row.nodeid }}</td>
+                      <td>{{ row.reliability_score }}%</td>
+                      <td>{{ row.pass_rate }}%</td>
+                      <td>{{ row.flake_rate }}%</td>
+                      <td>{{ row.chaos_sensitivity }}%</td>
+                    </tr>
+                  {% endfor %}
                 </tbody>
               </table>
             </div>
-            {% else %}
-            <p class="small">No reliability risk data available.</p>
-            {% endif %}
+            <p class="small" id="reliability-risk-empty" style="display:none; margin-top:8px;">No reliability risk data available.</p>
           </section>
 
           <section class="panel section">
@@ -361,30 +373,27 @@ DASHBOARD_TEMPLATE = Template(
               <h2>Recurring Failure Clusters</h2>
               <span class="small">Grouped by digest fingerprint</span>
             </div>
-            {% if metrics.failure_clusters %}
             <div class="table-wrap">
               <table>
                 <thead><tr><th>Fingerprint</th><th>Occurrences</th><th>Runs</th><th>Type</th><th>Top Tests</th></tr></thead>
-                <tbody>
-                {% for row in metrics.failure_clusters %}
-                  <tr>
-                    <td><code>{{ row.fingerprint }}</code></td>
-                    <td>{{ row.occurrences }}</td>
-                    <td>{{ row.runs_affected }}</td>
-                    <td>{{ row.failure_type }}</td>
-                    <td>
-                      {% for test in row.top_tests %}
-                        <div>{{ test.nodeid }} ({{ test.count }})</div>
-                      {% endfor %}
-                    </td>
-                  </tr>
-                {% endfor %}
+                <tbody id="failure-cluster-body">
+                  {% for row in metrics.failure_clusters %}
+                    <tr>
+                      <td><code>{{ row.fingerprint }}</code></td>
+                      <td>{{ row.occurrences }}</td>
+                      <td>{{ row.runs_affected }}</td>
+                      <td>{{ row.failure_type }}</td>
+                      <td>
+                        {% for test in row.top_tests %}
+                          <div>{{ test.nodeid }} ({{ test.count }})</div>
+                        {% endfor %}
+                      </td>
+                    </tr>
+                  {% endfor %}
                 </tbody>
               </table>
             </div>
-            {% else %}
-            <p class="small">No recurring failure clusters detected yet.</p>
-            {% endif %}
+            <p class="small" id="failure-cluster-empty" style="display:none; margin-top:8px;">No recurring failure clusters detected yet.</p>
           </section>
 
           <section class="panel section">
@@ -438,7 +447,7 @@ DASHBOARD_TEMPLATE = Template(
 
       let selectedRunId = runSeries.length ? runSeries[0].run_id : null;
       let visibleRunCount = 50;
-      let timeframeDays = 7;
+      let timeframeDays = null;
       let currentTestFilter = "ALL";
 
       function round2(value) {
@@ -518,7 +527,7 @@ DASHBOARD_TEMPLATE = Template(
       }
 
       function refreshKpisFromSeries() {
-        const runs = runSeries;
+        const runs = getFilteredRuns();
         const runCount = runs.length;
         const avgPassRate = runCount ? round2(runs.reduce((acc, row) => acc + toNumber(row.pass_rate || 0), 0) / runCount) : 0;
         const avgReliability = runCount
@@ -597,7 +606,7 @@ DASHBOARD_TEMPLATE = Template(
               status: row.status || "passed",
               duration_ms: toInt(row.duration_ms),
               failed: toInt(row.failed),
-              pass_rate: Number(row.pass_rate || 0),
+              pass_rate: row.pass_rate,
               run_reliability_score: toNumber(row.run_reliability_score || row.reliability_score || 0),
               chaos_profile: chaosProfile,
               run_json_path: runJsonPath || runJsonPathById.get(runId) || deriveRunJsonPath(runId, startedAt),
@@ -616,7 +625,7 @@ DASHBOARD_TEMPLATE = Template(
         refreshKpisFromSeries();
       }
 
-      async function backfillSeriesFromRunJson(limit = 80) {
+      async function backfillSeriesFromRunJson(limit = 250) {
         const candidates = runSeries.slice(0, limit);
         const updates = [];
         for (const row of candidates) {
@@ -639,6 +648,7 @@ DASHBOARD_TEMPLATE = Template(
         if (updates.length) {
           ingestSeriesRows(updates);
           refreshKpisFromSeries();
+          renderDashboardPanels();
         }
       }
 
@@ -653,7 +663,230 @@ DASHBOARD_TEMPLATE = Template(
         const row = seriesRowFromRun(payload);
         ingestSeriesRows([row]);
         refreshKpisFromSeries();
+        renderDashboardPanels();
         return payload;
+      }
+
+      function extractFingerprint(errorMessage) {
+        if (!errorMessage) return null;
+        const match = String(errorMessage).match(/(?:^|\\n)Fingerprint:\\s*([0-9a-f]{6,40})\\s*$/im);
+        if (!match) return null;
+        return String(match[1]).toLowerCase();
+      }
+
+      function mean(values) {
+        if (!values.length) return 0;
+        return values.reduce((acc, value) => acc + value, 0) / values.length;
+      }
+
+      function stddev(values) {
+        if (values.length <= 1) return 0;
+        const avg = mean(values);
+        const variance = mean(values.map((value) => (value - avg) ** 2));
+        return Math.sqrt(variance);
+      }
+
+      function windowRunsFromRows(rows) {
+        return rows
+          .map((row) => runsById.get(row.run_id))
+          .filter((run) => run && Array.isArray(run.tests));
+      }
+
+      function renderAnalyticsCoverageBadge(rows) {
+        const badge = document.getElementById("analytics-coverage-badge");
+        if (!badge) return;
+        const total = Array.isArray(rows) ? rows.length : 0;
+        const loaded = Array.isArray(rows)
+          ? rows.reduce((acc, row) => acc + (runsById.has(row.run_id) ? 1 : 0), 0)
+          : 0;
+        badge.textContent = `Loaded details ${loaded}/${total} runs`;
+      }
+
+      function computeTopReliabilityRisks(rows) {
+        const runs = windowRunsFromRows(rows);
+        const byTest = new Map();
+        for (const run of runs) {
+          for (const test of run.tests) {
+            if (!byTest.has(test.nodeid)) byTest.set(test.nodeid, []);
+            byTest.get(test.nodeid).push({ run, test });
+          }
+        }
+
+        const output = [];
+        for (const [nodeid, entries] of byTest.entries()) {
+          const ordered = entries
+            .slice()
+            .sort((a, b) => String(a.run.started_at || "").localeCompare(String(b.run.started_at || "")));
+          const executed = ordered.filter((item) => item.test.status === "passed" || item.test.status === "failed");
+          if (!executed.length) continue;
+
+          const statuses = executed.map((item) => item.test.status);
+          const passes = statuses.filter((status) => status === "passed").length;
+          const passRate = passes / executed.length;
+          const transitions = statuses.slice(1).reduce((acc, status, index) => acc + (status !== statuses[index] ? 1 : 0), 0);
+          const flakeRate = statuses.length > 1 ? transitions / (statuses.length - 1) : 0;
+
+          let chaosExecutions = 0;
+          let chaosFailures = 0;
+          let baselineExecutions = 0;
+          let baselineFailures = 0;
+          for (const item of executed) {
+            const hasChaos = Boolean(item.run.chaos_profile && item.run.chaos_profile !== "none");
+            if (hasChaos) {
+              chaosExecutions += 1;
+              if (item.test.status === "failed") chaosFailures += 1;
+            } else {
+              baselineExecutions += 1;
+              if (item.test.status === "failed") baselineFailures += 1;
+            }
+          }
+
+          const chaosFailRate = chaosExecutions ? chaosFailures / chaosExecutions : 0;
+          const baselineFailRate = baselineExecutions ? baselineFailures / baselineExecutions : 0;
+          const chaosSensitivity = Math.max(0, Math.min(1, chaosFailRate - baselineFailRate));
+
+          const durations = executed.map((item) => toNumber(item.test.duration_ms || 0)).filter((value) => value >= 0);
+          const avgDuration = mean(durations);
+          const durationCv = durations.length > 1 && avgDuration > 0 ? stddev(durations) / avgDuration : 0;
+          const durationStability = 1 - Math.max(0, Math.min(1, durationCv));
+
+          const reliability = round2(((passRate * 0.70) + ((1 - flakeRate) * 0.15) + ((1 - chaosSensitivity) * 0.10) + (durationStability * 0.05)) * 100);
+
+          output.push({
+            nodeid,
+            reliability_score: Math.max(0, Math.min(100, reliability)),
+            pass_rate: round2(passRate * 100),
+            flake_rate: round2(flakeRate * 100),
+            chaos_sensitivity: round2(chaosSensitivity * 100),
+            executions: executed.length,
+          });
+        }
+
+        output.sort((a, b) => {
+          if (a.reliability_score !== b.reliability_score) return a.reliability_score - b.reliability_score;
+          if (a.executions !== b.executions) return b.executions - a.executions;
+          return a.nodeid.localeCompare(b.nodeid);
+        });
+        return output.slice(0, 10);
+      }
+
+      function computeFailureClusters(rows) {
+        const runs = windowRunsFromRows(rows);
+        const clusters = new Map();
+        for (const run of runs) {
+          for (const test of run.tests) {
+            if (test.status !== "failed") continue;
+            const fingerprint = extractFingerprint(test.error_message);
+            if (!fingerprint) continue;
+
+            if (!clusters.has(fingerprint)) {
+              clusters.set(fingerprint, {
+                fingerprint,
+                occurrences: 0,
+                failureTypes: new Map(),
+                tests: new Map(),
+                runs: new Set(),
+              });
+            }
+            const cluster = clusters.get(fingerprint);
+            cluster.occurrences += 1;
+            cluster.runs.add(run.run_id);
+            cluster.failureTypes.set(test.failure_type || "unknown", (cluster.failureTypes.get(test.failure_type || "unknown") || 0) + 1);
+            cluster.tests.set(test.nodeid, (cluster.tests.get(test.nodeid) || 0) + 1);
+          }
+        }
+
+        return [...clusters.values()]
+          .map((row) => {
+            const topFailure = [...row.failureTypes.entries()].sort((a, b) => b[1] - a[1])[0];
+            const topTests = [...row.tests.entries()]
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 3)
+              .map(([nodeid, count]) => ({ nodeid, count }));
+            return {
+              fingerprint: row.fingerprint,
+              occurrences: row.occurrences,
+              runs_affected: row.runs.size,
+              failure_type: topFailure ? topFailure[0] : "unknown",
+              top_tests: topTests,
+            };
+          })
+          .sort((a, b) => {
+            if (a.occurrences !== b.occurrences) return b.occurrences - a.occurrences;
+            if (a.runs_affected !== b.runs_affected) return b.runs_affected - a.runs_affected;
+            return a.fingerprint.localeCompare(b.fingerprint);
+          })
+          .slice(0, 10);
+      }
+
+      function computeFailureDistribution(rows) {
+        const distribution = {};
+        const runs = windowRunsFromRows(rows);
+        for (const run of runs) {
+          for (const test of run.tests) {
+            if (test.status !== "failed") continue;
+            const key = test.failure_type || "unknown";
+            distribution[key] = (distribution[key] || 0) + 1;
+          }
+        }
+        return distribution;
+      }
+
+      function renderReliabilityRiskTable(rows) {
+        const tbody = document.getElementById("reliability-risk-body");
+        const empty = document.getElementById("reliability-risk-empty");
+        if (!tbody || !empty) return;
+        if (!rows.length) {
+          tbody.innerHTML = "";
+          empty.style.display = "block";
+          return;
+        }
+
+        empty.style.display = "none";
+        tbody.innerHTML = rows.map((row) => `
+          <tr>
+            <td>${esc(row.nodeid)}</td>
+            <td>${esc(round2(row.reliability_score))}%</td>
+            <td>${esc(round2(row.pass_rate))}%</td>
+            <td>${esc(round2(row.flake_rate))}%</td>
+            <td>${esc(round2(row.chaos_sensitivity))}%</td>
+          </tr>
+        `).join("");
+      }
+
+      function renderFailureClusterTable(rows) {
+        const tbody = document.getElementById("failure-cluster-body");
+        const empty = document.getElementById("failure-cluster-empty");
+        if (!tbody || !empty) return;
+        if (!rows.length) {
+          tbody.innerHTML = "";
+          empty.style.display = "block";
+          return;
+        }
+
+        empty.style.display = "none";
+        tbody.innerHTML = rows.map((row) => {
+          const tests = (row.top_tests || []).map((test) => `<div>${esc(test.nodeid)} (${esc(test.count)})</div>`).join("");
+          return `
+            <tr>
+              <td><code>${esc(row.fingerprint)}</code></td>
+              <td>${esc(row.occurrences)}</td>
+              <td>${esc(row.runs_affected)}</td>
+              <td>${esc(failureLabel(row.failure_type))}</td>
+              <td>${tests}</td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      function renderDashboardPanels() {
+        const windowRows = getFilteredRuns();
+        refreshKpisFromSeries();
+        renderAnalyticsCoverageBadge(windowRows);
+        renderFailureDonut(computeFailureDistribution(windowRows));
+        renderTrendChart(windowRows);
+        renderReliabilityRiskTable(computeTopReliabilityRisks(windowRows));
+        renderFailureClusterTable(computeFailureClusters(windowRows));
       }
 
       function esc(value) {
@@ -893,10 +1126,10 @@ DASHBOARD_TEMPLATE = Template(
         }
       }
 
-      function renderFailureDonut() {
+      function renderFailureDonut(distribution) {
         const svg = document.getElementById("failureDonut");
         const legend = document.getElementById("failureLegend");
-        const entries = Object.entries(trendData.failure_distribution || {});
+        const entries = Object.entries(distribution || trendData.failure_distribution || {});
         if (!entries.length) {
           svg.innerHTML = '<text x="10" y="20" fill="rgba(255,255,255,0.65)" font-size="13">No failures in selected window.</text>';
           legend.textContent = "";
@@ -933,9 +1166,9 @@ DASHBOARD_TEMPLATE = Template(
         }).join("");
       }
 
-      function renderTrendChart() {
+      function renderTrendChart(seriesRows) {
         const chart = document.getElementById("trendChart");
-        const series = runSeries.slice().reverse();
+        const series = (Array.isArray(seriesRows) ? seriesRows : runSeries).slice().reverse();
         if (!series.length) {
           chart.innerHTML = '<text x="20" y="24" fill="rgba(255,255,255,0.65)" font-size="13">No run history available.</text>';
           return;
@@ -970,6 +1203,7 @@ DASHBOARD_TEMPLATE = Template(
         document.getElementById("run-search").addEventListener("input", () => {
           visibleRunCount = 50;
           renderRunSidebar();
+          renderDashboardPanels();
         });
 
         document.getElementById("load-more").addEventListener("click", () => {
@@ -988,6 +1222,7 @@ DASHBOARD_TEMPLATE = Template(
             timeframeDays = raw === "all" ? null : Number(raw);
             visibleRunCount = 50;
             renderRunSidebar();
+            renderDashboardPanels();
           });
         }
 
@@ -1013,8 +1248,7 @@ DASHBOARD_TEMPLATE = Template(
         wireEvents();
         renderRunSidebar();
         await renderSelectedRun();
-        renderFailureDonut();
-        renderTrendChart();
+        renderDashboardPanels();
       }
 
       void bootstrapDashboard();
