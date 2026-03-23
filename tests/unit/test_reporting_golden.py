@@ -36,6 +36,7 @@ def _sample_run() -> RunRecord:
         duration_ms=12000,
         status="failed",
         chaos_profile="checkout_fault",
+        chaos_intent="fault",
         chaos_seed=7,
         environment=RunEnvironment(
             os="Darwin 24.3.0",

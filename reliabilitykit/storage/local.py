@@ -49,6 +49,9 @@ class LocalStorageBackend(StorageBackend):
             "total_tests": total_tests,
             "pass_rate": round((passed / total_tests) * 100, 2) if total_tests else 0.0,
             "chaos_profile": run.chaos_profile,
+            "chaos_intent": run.chaos_intent,
+            "surface": run.surface,
+            "scan_pack": run.scan_pack,
             "run_json_path": str((run_dir / "run.json").relative_to(self.root)),
             "report_path": str((run_dir / "report.html").relative_to(self.root)),
         }

@@ -5,9 +5,11 @@ RUN_WORKERS ?= auto
 RUN_REPEAT ?= 1
 RUN_CHAOS ?=
 RUN_SEED ?=
+RUN_SURFACE ?= api
+RUN_SCAN_PACK ?= core_reliability_scan
 CHAOS_PROFILE ?=
 
-.PHONY: venv install browsers test test-unit test-guardrails test-e2e run run-serial run-chaos-latency run-chaos-fault run-chaos-ci-latency run-chaos-ci-fault chaos-profiles chaos-show inspect trend dashboard clean-data report
+.PHONY: venv install browsers test test-unit test-guardrails test-e2e test-api test-legacy-ui run run-serial run-legacy-ui run-chaos-latency run-chaos-fault run-chaos-ci-latency run-chaos-ci-fault chaos-profiles chaos-show inspect trend dashboard clean-data report
 
 venv:
 	uv venv
@@ -29,23 +31,32 @@ test-guardrails:
 test-e2e:
 	$(PYTHON) -m pytest tests/e2e
 
+test-api:
+	$(PYTHON) -m pytest tests/api_scenarios/tests
+
+test-legacy-ui:
+	$(PYTHON) -m pytest tests/e2e/tests -m legacy_ui
+
 run:
-	$(PYTHON) -m reliabilitykit.cli.main run $(if $(RUN_CHAOS),--chaos $(RUN_CHAOS),) $(if $(RUN_SEED),--seed $(RUN_SEED),) --workers $(RUN_WORKERS) --repeat $(RUN_REPEAT) -- tests/e2e $(RUN_PYTEST_ARGS)
+	$(PYTHON) -m reliabilitykit.cli.main run --surface $(RUN_SURFACE) --scan-pack $(RUN_SCAN_PACK) $(if $(RUN_CHAOS),--chaos $(RUN_CHAOS),) $(if $(RUN_SEED),--seed $(RUN_SEED),) --workers $(RUN_WORKERS) --repeat $(RUN_REPEAT) -- $(RUN_PYTEST_ARGS)
 
 run-serial:
-	$(PYTHON) -m reliabilitykit.cli.main run -- tests/e2e
+	$(PYTHON) -m reliabilitykit.cli.main run --surface $(RUN_SURFACE) --scan-pack $(RUN_SCAN_PACK)
+
+run-legacy-ui:
+	$(PYTHON) -m reliabilitykit.cli.main run --surface legacy_ui -- tests/e2e/tests -m legacy_ui -v
 
 run-chaos-latency:
-	$(PYTHON) -m reliabilitykit.cli.main run --chaos latency_light --seed 21 -- tests/e2e -m chaos
+	$(PYTHON) -m reliabilitykit.cli.main run --surface legacy_ui --chaos latency_light --seed 21 -- tests/e2e/tests -m "legacy_ui and chaos"
 
 run-chaos-fault:
-	$(PYTHON) -m reliabilitykit.cli.main run --chaos checkout_fault --seed 7 -- tests/e2e -m chaos
+	$(PYTHON) -m reliabilitykit.cli.main run --surface legacy_ui --chaos checkout_fault --seed 7 -- tests/e2e/tests -m "legacy_ui and chaos"
 
 run-chaos-ci-latency:
-	$(PYTHON) -m reliabilitykit.cli.main run --workers 2 --chaos latency_light --seed 21 -- tests/e2e -m chaos -v
+	$(PYTHON) -m reliabilitykit.cli.main run --surface legacy_ui --workers 2 --chaos latency_light --seed 21 -- tests/e2e/tests -m "legacy_ui and chaos" -v
 
 run-chaos-ci-fault:
-	$(PYTHON) -m reliabilitykit.cli.main run --workers 2 --chaos checkout_fault --seed 7 -- tests/e2e -m chaos -v
+	$(PYTHON) -m reliabilitykit.cli.main run --surface legacy_ui --workers 2 --chaos checkout_fault --seed 7 -- tests/e2e/tests -m "legacy_ui and chaos" -v
 
 chaos-profiles:
 	$(PYTHON) -m reliabilitykit.cli.main chaos list

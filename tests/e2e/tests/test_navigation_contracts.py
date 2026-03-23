@@ -10,6 +10,7 @@ from tests.e2e.pages.home_page import HomePage
 
 
 @pytest.mark.asyncio
+@pytest.mark.legacy_ui
 @pytest.mark.positive
 @pytest.mark.parametrize(("selector", "expected_href"), HEADER_HREF_CASES)
 async def test_header_links_have_expected_hrefs(selector: str, expected_href: str, page: Page) -> None:
@@ -18,6 +19,7 @@ async def test_header_links_have_expected_hrefs(selector: str, expected_href: st
 
 
 @pytest.mark.asyncio
+@pytest.mark.legacy_ui
 @pytest.mark.positive
 @pytest.mark.parametrize("selector", HOME_CORE_SELECTORS)
 async def test_home_core_controls_are_present(selector: str, page: Page) -> None:
@@ -27,6 +29,7 @@ async def test_home_core_controls_are_present(selector: str, page: Page) -> None
 
 
 @pytest.mark.asyncio
+@pytest.mark.legacy_ui
 @pytest.mark.edge
 async def test_unknown_route_falls_back_to_home(page: Page) -> None:
     home_page = HomePage(page)

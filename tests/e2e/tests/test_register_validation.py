@@ -9,6 +9,7 @@ from tests.e2e.pages.register_page import RegisterPage
 
 
 @pytest.mark.asyncio
+@pytest.mark.legacy_ui
 @pytest.mark.edge
 @pytest.mark.parametrize("field_selector", REGISTER_REQUIRED_FIELDS)
 async def test_register_required_fields_mark_invalid(field_selector: str, page: Page) -> None:

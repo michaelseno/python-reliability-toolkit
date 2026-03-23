@@ -5,18 +5,20 @@ on:
     - cron: "0 0,5,10,15,20 * * *"
   workflow_dispatch:
     inputs:
-      seed_strategy:
-        description: "Seed strategy for chaos run (daily or fixed)"
+      fault_injection_rate:
+        description: "Percent chance to inject fault in this run"
         required: false
-        default: daily
-        type: choice
-        options:
-          - daily
-          - fixed
+        default: "50"
+        type: string
+      workers:
+        description: "Pytest workers for run command"
+        required: false
+        default: "4"
+        type: string
 
 jobs:
-  e2e-playwright:
-    name: E2E Playwright (Python 3.13)
+  api-reliability:
+    name: API Reliability Scan (Python 3.13)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -40,77 +42,64 @@ jobs:
       - name: Install Playwright Chromium
         run: python -m playwright install --with-deps chromium
 
-      - name: Decide chaos campaign
-        id: chaos_decision
+      - name: Decide fault injection campaign
+        id: fault_decision
         shell: bash
         run: |
           roll=$((RANDOM % 100))
-          strategy="${{ github.event.inputs.seed_strategy || 'daily' }}"
-          day_seed=$(date -u +%Y%m%d)
-          if [ "$roll" -lt 30 ]; then
+          inject_rate="${{ github.event.inputs.fault_injection_rate || '50' }}"
+          if ! [[ "$inject_rate" =~ ^[0-9]+$ ]]; then
+            inject_rate=50
+          fi
+          if [ "$inject_rate" -lt 0 ]; then inject_rate=0; fi
+          if [ "$inject_rate" -gt 100 ]; then inject_rate=100; fi
+
+          if [ "$roll" -lt "$inject_rate" ]; then
             enable=true
-            profiles=(latency_light checkout_fault rate_limit_burst auth_expired malformed_json timeout_hang resource_block fail_hard)
+            profiles=(latency_light checkout_fault rate_limit_burst auth_expired malformed_json timeout_hang fail_hard)
             pick=$((RANDOM % ${#profiles[@]}))
             profile="${profiles[$pick]}"
-            if [ "$strategy" = "fixed" ]; then
-              if [ "$profile" = "latency_light" ]; then
-                seed=21
-              elif [ "$profile" = "checkout_fault" ]; then
-                seed=7
-              elif [ "$profile" = "rate_limit_burst" ]; then
-                seed=31
-              elif [ "$profile" = "auth_expired" ]; then
-                seed=41
-              elif [ "$profile" = "malformed_json" ]; then
-                seed=51
-              elif [ "$profile" = "timeout_hang" ]; then
-                seed=61
-              elif [ "$profile" = "resource_block" ]; then
-                seed=71
-              else
-                seed=99
-              fi
-            else
-              checksum=$(printf "%s" "${day_seed}-${profile}" | cksum | cut -d' ' -f1)
-              seed=$((checksum % 100000 + 1))
-            fi
+            seed=$((RANDOM % 999999 + 1))
+            run_type="fault_injected"
           else
             enable=false
-            profile=""
-            seed=""
+            profile="none"
+            seed="none"
+            run_type="baseline"
           fi
 
-          echo "enable=$enable" >> "$GITHUB_OUTPUT"
-          echo "strategy=$strategy" >> "$GITHUB_OUTPUT"
-          echo "profile=$profile" >> "$GITHUB_OUTPUT"
-          echo "seed=$seed" >> "$GITHUB_OUTPUT"
+          echo "fault_injection_enabled=$enable" >> "$GITHUB_OUTPUT"
+          echo "fault_injection_profile=$profile" >> "$GITHUB_OUTPUT"
+          echo "fault_injection_seed=$seed" >> "$GITHUB_OUTPUT"
+          echo "run_type=$run_type" >> "$GITHUB_OUTPUT"
 
-      - name: Run baseline reliability campaign
-        run: python -m reliabilitykit.cli.main run --workers 4 -- tests/e2e -v
-
-      - name: Run chaos reliability campaign (fixed-seed lane)
-        if: steps.chaos_decision.outputs.enable == 'true' && steps.chaos_decision.outputs.strategy == 'fixed'
+      - name: Run API reliability scan (fault injected)
+        if: steps.fault_decision.outputs.fault_injection_enabled == 'true'
         continue-on-error: true
         run: |
           python -m reliabilitykit.cli.main run \
-            --workers 4 \
-            --chaos "${{ steps.chaos_decision.outputs.profile }}" \
-            --seed "${{ steps.chaos_decision.outputs.seed }}" \
-            -- tests/e2e -v
+            --surface api \
+            --scan-pack core_reliability_scan \
+            --workers "${{ github.event.inputs.workers || '4' }}" \
+            --chaos "${{ steps.fault_decision.outputs.fault_injection_profile }}" \
+            --seed "${{ steps.fault_decision.outputs.fault_injection_seed }}"
 
-      - name: Run chaos reliability campaign (daily deterministic lane)
-        if: steps.chaos_decision.outputs.enable == 'true' && steps.chaos_decision.outputs.strategy == 'daily'
+      - name: Run API reliability scan (baseline)
+        if: steps.fault_decision.outputs.fault_injection_enabled != 'true'
         continue-on-error: true
         run: |
           python -m reliabilitykit.cli.main run \
-            --workers 4 \
-            --chaos "${{ steps.chaos_decision.outputs.profile }}" \
-            --seed "${{ steps.chaos_decision.outputs.seed }}" \
-            -- tests/e2e -v
+            --surface api \
+            --scan-pack core_reliability_scan \
+            --workers "${{ github.event.inputs.workers || '4' }}"
 
       - name: Generate trend report
         if: always()
         run: python -m reliabilitykit.cli.main trend --window-days 30
+
+      - name: Generate dashboard report
+        if: always()
+        run: python -m reliabilitykit.cli.main dashboard --window-days 30
 
       - name: Configure AWS credentials (OIDC)
         if: always()
@@ -134,9 +123,12 @@ jobs:
           {
             echo "## Reliability Dashboard"
             echo "- URL: https://rk-reliability.s3.amazonaws.com/dashboard.html"
-            echo "- Chaos enabled: ${{ steps.chaos_decision.outputs.enable }}"
-            echo "- Chaos profile: ${{ steps.chaos_decision.outputs.profile }}"
-            echo "- Chaos seed: ${{ steps.chaos_decision.outputs.seed }}"
+            echo "- Surface: api"
+            echo "- Scan pack: core_reliability_scan"
+            echo "- Run type: ${{ steps.fault_decision.outputs.run_type }}"
+            echo "- Fault injection enabled: ${{ steps.fault_decision.outputs.fault_injection_enabled }}"
+            echo "- Fault injection profile: ${{ steps.fault_decision.outputs.fault_injection_profile }}"
+            echo "- Fault injection seed: ${{ steps.fault_decision.outputs.fault_injection_seed }}"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload reliability artifacts

@@ -5,6 +5,7 @@ from pathlib import Path
 from jinja2 import Template
 
 from reliabilitykit.core.models import RunRecord
+from reliabilitykit.reporting.insights import build_run_insights
 from reliabilitykit.reporting.metrics import build_run_metrics
 
 
@@ -290,6 +291,26 @@ RUN_TEMPLATE = Template(
         padding-left: 18px;
       }
 
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .summary-list {
+        margin: 8px 0 0;
+        padding-left: 18px;
+      }
+
+      .summary-list li { margin-bottom: 6px; }
+
+      .compact-details {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.03);
+        padding: 8px 10px;
+      }
+
       a {
         color: var(--blue);
         text-decoration: none;
@@ -306,6 +327,7 @@ RUN_TEMPLATE = Template(
         .hero-top { flex-direction: column; align-items: flex-start; }
         .grid,
         .meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .summary-grid { grid-template-columns: 1fr; }
         .value { font-size: 19px; }
       }
 
@@ -332,7 +354,10 @@ RUN_TEMPLATE = Template(
           <article class="meta-chip"><p class="label">Pytest</p><p class="value">{{ run.environment.pytest_version or "n/a" }}</p></article>
           <article class="meta-chip"><p class="label">Host</p><p class="value">{{ run.environment.host or "unknown" }}</p></article>
           <article class="meta-chip"><p class="label">Python</p><p class="value">{{ run.environment.python_version }}</p></article>
-          <article class="meta-chip"><p class="label">Chaos Profile</p><p class="value">{{ run.chaos_profile or "none" }}</p></article>
+          <article class="meta-chip"><p class="label">Fault Injection</p><p class="value">{{ run.chaos_intent or "none" }}</p></article>
+          <article class="meta-chip"><p class="label">Surface</p><p class="value">{{ run.surface }}</p></article>
+          <article class="meta-chip"><p class="label">Scan Pack</p><p class="value">{{ run.scan_pack or "n/a" }}</p></article>
+          <article class="meta-chip"><p class="label">Run Type</p><p class="value">{{ insights.context.run_type }}</p></article>
         </section>
       </section>
 
@@ -347,8 +372,58 @@ RUN_TEMPLATE = Template(
 
       <section class="section">
         <div class="section-head">
+          <h2>Executive Summary</h2>
+          <p class="small">Reliability intelligence for this execution.</p>
+        </div>
+        <div class="summary-grid">
+          <article class="card"><p class="label">Reliability Score</p><p class="value">{{ insights.reliability_score }}/100</p></article>
+          <article class="card"><p class="label">Risk Level</p><p class="value">{{ insights.risk_level }} Risk</p></article>
+          <article class="card"><p class="label">Top Failure Type</p><p class="value">{{ metrics.failure_distribution.keys()|list|first if metrics.failure_distribution else "none" }}</p></article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>Insights</h2>
+          <p class="small">Behavioral observations across this scan pack run.</p>
+        </div>
+        <div class="summary-grid" style="margin-top: 12px;">
+          <article class="card">
+            <p class="label">Key Findings</p>
+            <ul class="summary-list">
+              {% for finding in insights.findings %}
+              <li>{{ finding }}</li>
+              {% endfor %}
+            </ul>
+          </article>
+          <article class="card" style="grid-column: span 2;">
+            <p class="label">Recommendations</p>
+            <ul class="summary-list">
+              {% for recommendation in insights.recommendations %}
+              <li>{{ recommendation }}</li>
+              {% endfor %}
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>Context Metadata</h2>
+          <p class="small">Execution context for reproducibility.</p>
+        </div>
+        <div class="summary-grid">
+          <article class="card"><p class="label">Scan Pack</p><p class="value">{{ insights.context.scan_pack }}</p></article>
+          <article class="card"><p class="label">Surface</p><p class="value">{{ insights.context.surface }}</p></article>
+          <article class="card"><p class="label">Fault Injection</p><p class="value">{{ insights.context.fault_injection }}</p></article>
+          <article class="card"><p class="label">Chaos Profile</p><p class="value">{{ insights.context.chaos_profile }}</p></article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
           <h2>Failures First</h2>
-          <p class="small">Immediate triage for failed scenarios.</p>
+          <p class="small">Failed scenarios, grouped for fast triage.</p>
         </div>
         {% if metrics.failed_tests %}
         <div class="failure-list">
@@ -360,7 +435,7 @@ RUN_TEMPLATE = Template(
             </div>
             <p class="failure-meta">Duration: {{ t.duration_ms }} ms | Chaos events: {{ t.chaos_events|length }}</p>
             {% if t.error_message %}
-            <details open>
+            <details>
               <summary>Failure summary</summary>
               <pre>{{ t.error_message[:1500] }}</pre>
             </details>
@@ -397,11 +472,6 @@ RUN_TEMPLATE = Template(
               {% endfor %}
             </ul>
             {% endif %}
-            <ul class="list-inline">
-              {% for artifact in t.artifacts %}
-              <li><a href="{{ artifact.path }}">{{ artifact.kind }}</a></li>
-              {% endfor %}
-            </ul>
             {% endif %}
           </article>
           {% endfor %}
@@ -413,17 +483,17 @@ RUN_TEMPLATE = Template(
 
       <section class="section">
         <div class="section-head">
-          <h2>Failure Distribution</h2>
-          <p class="small">Grouped by classifier output.</p>
+          <h2>Failure Classification Summary</h2>
+          <p class="small">Normalized categories for reliability analysis.</p>
         </div>
-        {% if metrics.failure_distribution %}
+        {% if insights.failure_classification_summary %}
         <ul class="list-inline">
-          {% for failure_type, count in metrics.failure_distribution.items() %}
-          <li><span class="badge bad">{{ failure_type }}</span> {{ count }}</li>
+          {% for row in insights.failure_classification_summary %}
+          <li><span class="badge bad">{{ row.failure_type }}</span> {{ row.count }}</li>
           {% endfor %}
         </ul>
         {% else %}
-        <p class="small">No failure categories in this run.</p>
+        <p class="small">No classified failures in this run.</p>
         {% endif %}
       </section>
 
@@ -452,56 +522,59 @@ RUN_TEMPLATE = Template(
 
       <section class="section">
         <div class="section-head">
-          <h2>All Tests</h2>
-          <p class="small">Expandable diagnostics, artifacts, and chaos events.</p>
+          <h2>Scenario Breakdown</h2>
+          <p class="small">Compact table with expandable diagnostics.</p>
         </div>
-        <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>NodeID</th>
-              <th>Status</th>
-              <th>Failure Type</th>
-              <th>Duration</th>
-               <th>Failure Summary</th>
-              <th>Artifacts</th>
-              <th>Chaos Events</th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for t in run.tests %}
-            <tr>
-              <td>{{ t.nodeid }}</td>
-              <td><span class="badge {{ status_class(t.status) }}">{{ t.status }}</span></td>
-              <td>{{ t.failure_type }}</td>
-              <td>{{ t.duration_ms }} ms</td>
-              <td>
-                {% if t.error_message %}
-                <details>
-                  <summary>View error</summary>
-                  <pre>{{ t.error_message[:1500] }}</pre>
-                </details>
-                {% else %}
-                <span class="muted">-</span>
-                {% endif %}
-              </td>
-              <td>
-                {% if t.artifacts %}
-                <ul class="list-inline">
-                  {% for artifact in t.artifacts %}
-                  <li><a href="{{ artifact.path }}">{{ artifact.kind }}</a></li>
-                  {% endfor %}
-                </ul>
-                {% else %}
-                <span class="muted">none</span>
-                {% endif %}
-              </td>
-              <td>{{ t.chaos_events|length }}</td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-        </div>
+        <details class="compact-details" open>
+          <summary>Show scenario outcome table</summary>
+          <div class="table-wrap" style="margin-top: 10px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Scenario</th>
+                <th>Status</th>
+                <th>Insight</th>
+                <th>Duration</th>
+                <th>Failure Type</th>
+                <th>Diagnostics</th>
+                <th>Chaos Events</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for row in insights.scenario_breakdown %}
+              <tr>
+                <td>{{ row.scenario_name }}</td>
+                <td><span class="badge {{ status_class(row.status) }}">{{ row.status_icon }} {{ row.status }}</span></td>
+                <td>{{ row.insight }}</td>
+                <td>{{ row.duration_ms }} ms</td>
+                <td>{{ row.failure_type }}</td>
+                <td>
+                  {% set t = run.tests[loop.index0] %}
+                  {% if t.error_message or t.artifacts %}
+                  <details>
+                    <summary>View details</summary>
+                    {% if t.error_message %}
+                    <pre>{{ t.error_message[:1500] }}</pre>
+                    {% endif %}
+                    {% if t.artifacts %}
+                    <ul class="list-inline">
+                      {% for artifact in t.artifacts %}
+                      <li><a href="{{ artifact.path }}">{{ artifact.kind }}</a></li>
+                      {% endfor %}
+                    </ul>
+                    {% endif %}
+                  </details>
+                  {% else %}
+                  <span class="muted">none</span>
+                  {% endif %}
+                </td>
+                <td>{{ t.chaos_events|length }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          </div>
+        </details>
       </section>
     </div>
   </body>
@@ -512,5 +585,6 @@ RUN_TEMPLATE = Template(
 
 def write_run_report(run: RunRecord, output_path: Path) -> None:
     metrics = build_run_metrics(run)
-    html = RUN_TEMPLATE.render(run=run, metrics=metrics, status_class=_status_class)
+    insights = build_run_insights(run, metrics)
+    html = RUN_TEMPLATE.render(run=run, metrics=metrics, insights=insights, status_class=_status_class)
     output_path.write_text(html, encoding="utf-8")

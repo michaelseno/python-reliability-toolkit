@@ -83,5 +83,6 @@ def inspect_runs(
     for row in rows:
         typer.echo(
             f"{row['run_id']} status={row['status']} failed={row['failed']} "
-            f"duration_ms={row['duration_ms']} chaos={row.get('chaos_profile') or 'none'}"
+            f"duration_ms={row['duration_ms']} chaos={row.get('chaos_profile') or 'none'} "
+            f"fault_injection={row.get('chaos_intent') or 'none'}"
         )

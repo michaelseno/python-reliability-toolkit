@@ -33,6 +33,7 @@ def list_chaos_profiles(
             {
                 "name": name,
                 "mode": profile.mode,
+                "fault_injection": profile.intent_class,
                 "probability": profile.probability,
                 "seed": profile.seed,
                 "targets": len(profile.targets),
@@ -45,7 +46,7 @@ def list_chaos_profiles(
 
     for row in rows:
         typer.echo(
-            f"{row['name']} mode={row['mode']} probability={row['probability']} "
+            f"{row['name']} fault_injection={row['fault_injection']} mode={row['mode']} probability={row['probability']} "
             f"seed={row['seed']} targets={row['targets']}"
         )
 
@@ -75,6 +76,7 @@ def show_chaos_profile(
     payload = {
         "name": profile,
         "mode": item.mode,
+        "fault_injection": item.intent_class,
         "probability": item.probability,
         "seed": item.seed,
         "latency_ms": {"min": item.latency_ms.min, "max": item.latency_ms.max},
@@ -88,7 +90,7 @@ def show_chaos_profile(
         return
 
     typer.echo(
-        f"{payload['name']} mode={payload['mode']} probability={payload['probability']} "
+        f"{payload['name']} fault_injection={payload['fault_injection']} mode={payload['mode']} probability={payload['probability']} "
         f"seed={payload['seed']} targets={len(payload['targets'])}"
     )
     typer.echo(

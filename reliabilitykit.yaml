@@ -20,6 +20,7 @@ chaos:
   profiles:
     latency_light:
       mode: latency
+      intent_class: resilience
       probability: 0.3
       seed: 42
       latency_ms:
@@ -36,6 +37,7 @@ chaos:
           resource_types: ["document", "xhr", "fetch"]
     checkout_fault:
       mode: mixed
+      intent_class: fault
       probability: 0.4
       seed: 42
       status_codes: [500, 503]
@@ -46,6 +48,7 @@ chaos:
           resource_types: ["document", "xhr", "fetch"]
     rate_limit_burst:
       mode: http_status
+      intent_class: resilience
       probability: 0.35
       seed: 42
       status_codes: [429]
@@ -60,6 +63,7 @@ chaos:
           resource_types: ["xhr", "fetch"]
     auth_expired:
       mode: http_status
+      intent_class: fault
       probability: 0.3
       seed: 42
       status_codes: [401, 403]
@@ -70,6 +74,7 @@ chaos:
           resource_types: ["xhr", "fetch"]
     malformed_json:
       mode: malformed_json
+      intent_class: fault
       probability: 0.25
       seed: 42
       status_codes: [200]
@@ -80,6 +85,7 @@ chaos:
           resource_types: ["xhr", "fetch"]
     timeout_hang:
       mode: timeout_hang
+      intent_class: fault
       probability: 0.25
       seed: 42
       hang_ms: 45000
@@ -90,6 +96,7 @@ chaos:
           resource_types: ["xhr", "fetch"]
     resource_block:
       mode: abort
+      intent_class: disruptive
       probability: 0.25
       seed: 42
       targets:
@@ -99,6 +106,7 @@ chaos:
           resource_types: ["script", "stylesheet", "font", "image"]
     fail_hard:
       mode: abort
+      intent_class: disruptive
       probability: 1.0
       seed: 42
       targets:

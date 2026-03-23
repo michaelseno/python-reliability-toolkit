@@ -9,6 +9,7 @@ from tests.e2e.pages.login_page import LoginPage
 
 
 @pytest.mark.asyncio
+@pytest.mark.legacy_ui
 @pytest.mark.chaos(profile="latency_light", seed=21)
 async def test_chaos_latency_still_shows_home_content(page: Page) -> None:
     home_page = HomePage(page)
@@ -18,6 +19,7 @@ async def test_chaos_latency_still_shows_home_content(page: Page) -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.legacy_ui
 @pytest.mark.chaos(profile="checkout_fault", seed=7)
 async def test_chaos_fault_still_shows_login_form(page: Page) -> None:
     login_page = LoginPage(page)
@@ -27,6 +29,7 @@ async def test_chaos_fault_still_shows_login_form(page: Page) -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.legacy_ui
 @pytest.mark.chaos(profile="checkout_fault", seed=11)
 async def test_chaos_fault_still_shows_contact_form(page: Page) -> None:
     contact_page = ContactPage(page)
