@@ -13,7 +13,7 @@ and HTML reports so every run becomes analyzable data.
 - **Status:** MVP complete and actively evolving
 - **Execution engine:** CLI-first with importable core modules
 - **Storage:** local-first run records and artifacts (`.reliabilitykit/`), S3 backend scaffolded
-- **Test coverage:** 51 POM-based Playwright e2e scenarios on `https://practicesoftwaretesting.com`
+- **Test coverage:** API scenario-pack reliability scans (primary) + 51 legacy Playwright UI scenarios
 - **Quality gates:** unit tests, golden snapshot tests, architecture guardrails, PR CI, and scheduled CI
 - **Next milestones:** richer trend analytics, expanded failure classification, and production-ready S3 backend
 
@@ -49,8 +49,8 @@ Run tests via ReliabilityKit:
 make run
 ```
 
-`make run` executes e2e with pytest-xdist (`--workers auto`) for parallelism.
-Use `make run-serial` if you need deterministic single-worker execution.
+`make run` executes the API `core_reliability_scan` by default with pytest-xdist (`--workers auto`).
+Use `make run-serial` for deterministic single-worker execution.
 
 You can pass chaos and repeat options directly through `make run`:
 
@@ -59,8 +59,8 @@ make run RUN_CHAOS=latency_light RUN_SEED=21
 make run RUN_REPEAT=5 RUN_PYTEST_ARGS="-m smoke -v"
 ```
 
-The default e2e suite targets `https://practicesoftwaretesting.com` and currently contains 51 scenarios
-covering positive, negative, and edge cases.
+The default API scenario pack targets `https://api.practicesoftwaretesting.com`.
+Legacy Playwright UI scenarios are still supported and marked with `legacy_ui`.
 
 E2E tests follow a Page Object Model structure under `tests/e2e/` with separate `pages/`, `components/`,
 `flows/`, `assertions/`, and `data/` modules to keep tests DRY and maintainable.
@@ -129,13 +129,16 @@ reliabilitykit dashboard --help
 Common workflows:
 
 ```bash
-# baseline run
-reliabilitykit run -- tests/e2e
+# baseline API scan run
+reliabilitykit run --surface api --scan-pack core_reliability_scan
 
-# chaos run
+# chaos run (API scan)
 reliabilitykit chaos list
 reliabilitykit chaos show latency_light
-reliabilitykit run --chaos latency_light --seed 21 -- tests/e2e -m chaos
+reliabilitykit run --surface api --scan-pack core_reliability_scan --chaos latency_light --seed 21
+
+# legacy UI run (deprecated lane)
+reliabilitykit run --surface legacy_ui -- tests/e2e/tests -m legacy_ui
 
 # inspect latest failed runs
 reliabilitykit inspect --status failed --last 20
@@ -215,7 +218,8 @@ Run records automatically include basic CI metadata when `CI` or `GITHUB_ACTIONS
 ## Current Test Layout
 
 - Unit tests: `tests/unit/` (includes golden snapshots and e2e architecture guardrails)
-- E2E tests: `tests/e2e/tests/` (POM-driven, 51 scenarios)
+- API scenario tests: `tests/api_scenarios/tests/` (pack-driven reliability scenarios)
+- Legacy UI tests: `tests/e2e/tests/` (POM-driven, `legacy_ui` marker)
 - POM layers:
   - `tests/e2e/pages/`
   - `tests/e2e/components/`

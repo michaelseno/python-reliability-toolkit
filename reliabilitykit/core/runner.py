@@ -26,6 +26,8 @@ def execute_pytest_run(
     chaos_seed: int | None = None,
     browser: str = "chromium",
     workers: str | None = None,
+    surface: str = "legacy_ui",
+    scan_pack: str | None = None,
 ) -> RunRecord:
     started_at = datetime.now(UTC)
     run_id = create_run_id(started_at)
@@ -78,6 +80,8 @@ def execute_pytest_run(
         environment=collect_environment(),
         chaos_profile=chaos_profile,
         chaos_seed=chaos_seed,
+        surface=surface,
+        scan_pack=scan_pack,
         tests=tests,
     )
     storage.write_run(run, run_dir)
