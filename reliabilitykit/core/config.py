@@ -41,6 +41,7 @@ class LatencyRange(BaseModel):
 
 class ChaosProfileConfig(BaseModel):
     mode: Literal["latency", "http_5xx", "http_status", "abort", "mixed", "malformed_json", "timeout_hang"]
+    intent_class: Literal["resilience", "fault", "disruptive"] = "fault"
     probability: float = 0.2
     seed: int = 42
     latency_ms: LatencyRange = Field(default_factory=LatencyRange)

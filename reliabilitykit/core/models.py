@@ -75,6 +75,7 @@ class RunRecord(BaseModel):
     status: Literal["passed", "failed"]
     environment: RunEnvironment
     chaos_profile: str | None = None
+    chaos_intent: str | None = None
     chaos_seed: int | None = None
     surface: str = "legacy_ui"
     scan_pack: str | None = None

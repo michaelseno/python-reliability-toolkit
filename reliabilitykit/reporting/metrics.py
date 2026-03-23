@@ -317,6 +317,7 @@ def build_trend_metrics(runs: list[RunRecord]) -> dict:
                 "pass_rate": run_pass_rate,
                 "run_reliability_score": run_reliability_score,
                 "chaos_profile": run.chaos_profile or "none",
+                "chaos_intent": run.chaos_intent or "none",
                 "report_path": f"runs/{date_path}/{run.run_id}/report.html",
                 "run_json_path": f"runs/{date_path}/{run.run_id}/run.json",
             }

@@ -354,9 +354,10 @@ RUN_TEMPLATE = Template(
           <article class="meta-chip"><p class="label">Pytest</p><p class="value">{{ run.environment.pytest_version or "n/a" }}</p></article>
           <article class="meta-chip"><p class="label">Host</p><p class="value">{{ run.environment.host or "unknown" }}</p></article>
           <article class="meta-chip"><p class="label">Python</p><p class="value">{{ run.environment.python_version }}</p></article>
-          <article class="meta-chip"><p class="label">Chaos Profile</p><p class="value">{{ run.chaos_profile or "none" }}</p></article>
+          <article class="meta-chip"><p class="label">Fault Injection</p><p class="value">{{ run.chaos_intent or "none" }}</p></article>
           <article class="meta-chip"><p class="label">Surface</p><p class="value">{{ run.surface }}</p></article>
           <article class="meta-chip"><p class="label">Scan Pack</p><p class="value">{{ run.scan_pack or "n/a" }}</p></article>
+          <article class="meta-chip"><p class="label">Run Type</p><p class="value">{{ insights.context.run_type }}</p></article>
         </section>
       </section>
 
@@ -372,12 +373,19 @@ RUN_TEMPLATE = Template(
       <section class="section">
         <div class="section-head">
           <h2>Executive Summary</h2>
-          <p class="small">Actionable run-level reliability insight.</p>
+          <p class="small">Reliability intelligence for this execution.</p>
         </div>
         <div class="summary-grid">
-          <article class="card"><p class="label">Reliability Score</p><p class="value">{{ insights.reliability_score }}</p></article>
-          <article class="card"><p class="label">Risk Level</p><p class="value">{{ insights.risk_level }}</p></article>
+          <article class="card"><p class="label">Reliability Score</p><p class="value">{{ insights.reliability_score }}/100</p></article>
+          <article class="card"><p class="label">Risk Level</p><p class="value">{{ insights.risk_level }} Risk</p></article>
           <article class="card"><p class="label">Top Failure Type</p><p class="value">{{ metrics.failure_distribution.keys()|list|first if metrics.failure_distribution else "none" }}</p></article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>Insights</h2>
+          <p class="small">Behavioral observations across this scan pack run.</p>
         </div>
         <div class="summary-grid" style="margin-top: 12px;">
           <article class="card">
@@ -401,6 +409,19 @@ RUN_TEMPLATE = Template(
 
       <section class="section">
         <div class="section-head">
+          <h2>Context Metadata</h2>
+          <p class="small">Execution context for reproducibility.</p>
+        </div>
+        <div class="summary-grid">
+          <article class="card"><p class="label">Scan Pack</p><p class="value">{{ insights.context.scan_pack }}</p></article>
+          <article class="card"><p class="label">Surface</p><p class="value">{{ insights.context.surface }}</p></article>
+          <article class="card"><p class="label">Fault Injection</p><p class="value">{{ insights.context.fault_injection }}</p></article>
+          <article class="card"><p class="label">Chaos Profile</p><p class="value">{{ insights.context.chaos_profile }}</p></article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
           <h2>Failures First</h2>
           <p class="small">Failed scenarios, grouped for fast triage.</p>
         </div>
@@ -414,7 +435,7 @@ RUN_TEMPLATE = Template(
             </div>
             <p class="failure-meta">Duration: {{ t.duration_ms }} ms | Chaos events: {{ t.chaos_events|length }}</p>
             {% if t.error_message %}
-            <details open>
+            <details>
               <summary>Failure summary</summary>
               <pre>{{ t.error_message[:1500] }}</pre>
             </details>
@@ -462,17 +483,17 @@ RUN_TEMPLATE = Template(
 
       <section class="section">
         <div class="section-head">
-          <h2>Failure Distribution</h2>
-          <p class="small">Grouped by classifier output.</p>
+          <h2>Failure Classification Summary</h2>
+          <p class="small">Normalized categories for reliability analysis.</p>
         </div>
-        {% if metrics.failure_distribution %}
+        {% if insights.failure_classification_summary %}
         <ul class="list-inline">
-          {% for failure_type, count in metrics.failure_distribution.items() %}
-          <li><span class="badge bad">{{ failure_type }}</span> {{ count }}</li>
+          {% for row in insights.failure_classification_summary %}
+          <li><span class="badge bad">{{ row.failure_type }}</span> {{ row.count }}</li>
           {% endfor %}
         </ul>
         {% else %}
-        <p class="small">No failure categories in this run.</p>
+        <p class="small">No classified failures in this run.</p>
         {% endif %}
       </section>
 
@@ -512,20 +533,23 @@ RUN_TEMPLATE = Template(
               <tr>
                 <th>Scenario</th>
                 <th>Status</th>
-                <th>Failure Type</th>
+                <th>Insight</th>
                 <th>Duration</th>
+                <th>Failure Type</th>
                 <th>Diagnostics</th>
                 <th>Chaos Events</th>
               </tr>
             </thead>
             <tbody>
-            {% for t in run.tests %}
+            {% for row in insights.scenario_breakdown %}
               <tr>
-                <td>{{ t.nodeid }}</td>
-                <td><span class="badge {{ status_class(t.status) }}">{{ t.status }}</span></td>
-                <td>{{ t.failure_type }}</td>
-                <td>{{ t.duration_ms }} ms</td>
+                <td>{{ row.scenario_name }}</td>
+                <td><span class="badge {{ status_class(row.status) }}">{{ row.status_icon }} {{ row.status }}</span></td>
+                <td>{{ row.insight }}</td>
+                <td>{{ row.duration_ms }} ms</td>
+                <td>{{ row.failure_type }}</td>
                 <td>
+                  {% set t = run.tests[loop.index0] %}
                   {% if t.error_message or t.artifacts %}
                   <details>
                     <summary>View details</summary>

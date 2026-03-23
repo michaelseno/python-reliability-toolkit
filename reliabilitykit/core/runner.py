@@ -79,6 +79,7 @@ def execute_pytest_run(
         status=status,
         environment=collect_environment(),
         chaos_profile=chaos_profile,
+        chaos_intent=(config.chaos.profiles[chaos_profile].intent_class if chaos_profile and chaos_profile in config.chaos.profiles else None),
         chaos_seed=chaos_seed,
         surface=surface,
         scan_pack=scan_pack,

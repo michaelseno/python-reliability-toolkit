@@ -19,6 +19,7 @@ chaos:
   profiles:
     latency_light:
       mode: latency
+      intent_class: resilience
       probability: 0.3
       seed: 21
       latency_ms:
@@ -31,6 +32,7 @@ chaos:
           resource_types: [xhr, fetch]
     checkout_fault:
       mode: mixed
+      intent_class: fault
       probability: 0.4
       seed: 7
       status_codes: [500, 503]
@@ -53,6 +55,7 @@ def test_chaos_list_shows_profiles(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "latency_light" in result.output
     assert "checkout_fault" in result.output
+    assert "fault_injection=resilience" in result.output
     assert "mode=latency" in result.output
 
 
@@ -77,7 +80,7 @@ def test_chaos_show_outputs_profile_details(tmp_path: Path) -> None:
     result = runner.invoke(app, ["chaos", "show", "latency_light", "--config", str(config_path)])
 
     assert result.exit_code == 0
-    assert "latency_light mode=latency" in result.output
+    assert "latency_light fault_injection=resilience mode=latency" in result.output
     assert "targets:" in result.output
     assert "pattern=/products" in result.output
 
