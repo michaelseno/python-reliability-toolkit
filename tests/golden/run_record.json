@@ -22,6 +22,8 @@
   },
   "chaos_profile": "checkout_fault",
   "chaos_seed": 7,
+  "surface": "legacy_ui",
+  "scan_pack": null,
   "tests": [
     {
       "nodeid": "tests/e2e/test_file.py::test_ok",
