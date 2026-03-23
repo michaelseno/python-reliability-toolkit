@@ -11,6 +11,7 @@ from tests.e2e.pages.login_page import LoginPage
 
 
 @pytest.mark.asyncio
+@pytest.mark.legacy_ui
 @pytest.mark.negative
 @pytest.mark.parametrize("field_selector", ["[data-test='email']", "[data-test='password']"])
 async def test_login_required_fields_mark_invalid(field_selector: str, page: Page) -> None:
@@ -22,6 +23,7 @@ async def test_login_required_fields_mark_invalid(field_selector: str, page: Pag
 
 
 @pytest.mark.asyncio
+@pytest.mark.legacy_ui
 @pytest.mark.negative
 @pytest.mark.parametrize(("email", "password"), INVALID_LOGIN_CASES)
 async def test_login_invalid_credentials_return_401(email: str, password: str, page: Page) -> None:
@@ -32,6 +34,7 @@ async def test_login_invalid_credentials_return_401(email: str, password: str, p
 
 
 @pytest.mark.asyncio
+@pytest.mark.legacy_ui
 @pytest.mark.negative
 @pytest.mark.parametrize("email", FORGOT_EMAIL_CASES)
 async def test_forgot_password_returns_422_for_unknown_email(email: str, page: Page) -> None:

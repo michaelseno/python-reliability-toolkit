@@ -31,6 +31,16 @@ include = ["reliabilitykit*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 markers = [
+  "legacy_ui: deprecated but supported UI end-to-end scenarios",
+  "api_scenario: API reliability scenario-pack tests",
+  "scenario_baseline_health: baseline health API scenario",
+  "scenario_repeated_stability: repeated stability API scenario",
+  "scenario_burst_stability: burst stability API scenario",
+  "scenario_invalid_payload_handling: invalid payload API scenario",
+  "scenario_missing_fields_validation: missing fields API scenario",
+  "scenario_auth_failure_handling: auth failure API scenario",
+  "scenario_timeout_sensitivity: timeout sensitivity API scenario",
+  "scenario_response_consistency: response consistency API scenario",
   "chaos: tests that run with chaos profile",
   "smoke: fast route and UI smoke checks",
   "positive: expected success behavior checks",

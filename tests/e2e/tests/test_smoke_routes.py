@@ -9,6 +9,7 @@ from tests.e2e.pages.home_page import HomePage
 
 
 @pytest.mark.asyncio
+@pytest.mark.legacy_ui
 @pytest.mark.smoke
 @pytest.mark.parametrize("path", SMOKE_ROUTES)
 async def test_page_smoke_loads(path: str, page: Page) -> None:

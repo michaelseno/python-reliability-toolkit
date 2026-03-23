@@ -9,6 +9,7 @@ from tests.e2e.pages.contact_page import ContactPage
 
 
 @pytest.mark.asyncio
+@pytest.mark.legacy_ui
 @pytest.mark.edge
 @pytest.mark.parametrize("field_selector", CONTACT_REQUIRED_FIELDS)
 async def test_contact_required_fields_mark_invalid(field_selector: str, page: Page) -> None:
@@ -18,6 +19,7 @@ async def test_contact_required_fields_mark_invalid(field_selector: str, page: P
 
 
 @pytest.mark.asyncio
+@pytest.mark.legacy_ui
 @pytest.mark.positive
 @pytest.mark.parametrize(("field_selector", "value"), CONTACT_OPTIONAL_FIELDS)
 async def test_contact_optional_fields_accept_input(field_selector: str, value: str, page: Page) -> None:
