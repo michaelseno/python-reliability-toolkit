@@ -6,18 +6,18 @@ This document describes `.github/workflows/ci-scheduled.yml` behavior.
 
 - Scheduled cron: `0 0,5,10,15,20 * * *`
 - Manual trigger: `workflow_dispatch`
-- Manual input: `seed_strategy` (`daily` or `fixed`)
+- Manual input: `fault_injection_rate` (0-100, default `50`)
+- Manual input: `workers` (pytest workers, default `4`)
 
 ## Execution Flow
 
 1. Setup Python, uv, and Playwright Chromium
-2. Decide chaos campaign (`enable/profile/seed`) in shell step
-3. Run baseline reliability campaign
-4. Optionally run chaos campaign
-   - fixed lane uses direct CLI command with stable per-profile seeds
-   - daily lane uses deterministic date+profile-derived seed
-5. Generate trend report (`reliabilitykit trend --window-days 30`)
-6. Upload run artifacts to GitHub Actions artifacts
+2. Decide run mode with randomized fault injection (`enable/profile/seed`) in shell step
+3. Run one API reliability scan campaign (`--surface api --scan-pack core_reliability_scan`)
+   - baseline when fault injection is disabled
+   - fault-injected when enabled with randomized profile + seed
+4. Generate trend and dashboard reports (`--window-days 30`)
+5. Upload run artifacts to GitHub Actions artifacts
 
 ## Artifact Location
 
@@ -33,22 +33,9 @@ Uploaded paths:
 
 To inspect results, open the specific GitHub Actions run and download the artifact bundle.
 
-## Seed Lanes
+## Fault Injection Profile Rotation
 
-- `fixed`: reproducible lane with per-profile stable seeds:
-  - `latency_light=21`
-  - `checkout_fault=7`
-  - `rate_limit_burst=31`
-  - `auth_expired=41`
-  - `malformed_json=51`
-  - `timeout_hang=61`
-  - `resource_block=71`
-  - `fail_hard=99`
-- `daily`: deterministic rotating lane based on UTC date and profile
-
-## Chaos Profile Rotation
-
-Scheduled chaos campaign randomly selects one profile from the configured CI set:
+When enabled, scheduled campaign randomly selects one profile from this CI set:
 
 - `latency_light`
 - `checkout_fault`
@@ -56,10 +43,40 @@ Scheduled chaos campaign randomly selects one profile from the configured CI set
 - `auth_expired`
 - `malformed_json`
 - `timeout_hang`
-- `resource_block`
 - `fail_hard`
+
+## Randomization Logic
+
+- Each scheduled run rolls a random value.
+- If roll `< fault_injection_rate`, run is fault-injected.
+- If roll `>= fault_injection_rate`, run is baseline.
+- Fault-injected runs randomize both profile and seed.
 
 ## Current Limitation
 
 Each runner is ephemeral. Without external persistence, history is fragmented per run artifact.
 See `docs/s3-architecture-plan.md` for persistent dashboard strategy.
+
+## S3 Lifecycle Retention
+
+For cost control, apply lifecycle policy to expire historical run artifacts while keeping dashboard/index current.
+
+- Recommended retention for `runs/`: 90 days
+- Transition `runs/` objects to Standard-IA after 30 days
+- Abort incomplete multipart uploads after 7 days
+
+Reference policy file:
+
+- `docs/s3-lifecycle-policy.json`
+
+Apply policy:
+
+```bash
+aws s3api put-bucket-lifecycle-configuration \
+  --bucket rk-reliability \
+  --lifecycle-configuration file://docs/s3-lifecycle-policy.json
+```
+
+Note:
+
+- If retention is 90 days, keep trend windows at or below 90 days for complete analytics continuity.

@@ -181,30 +181,20 @@ Trend and dashboard views now include reliability scoring:
 
 Use a two-lane seed strategy so runs are both reproducible and exploratory:
 
-- **CI lane (fixed seeds):** use stable per-profile seeds for reproducible PR triage.
-  - `latency_light -> 21`
-  - `checkout_fault -> 7`
-  - `rate_limit_burst -> 31`
-  - `auth_expired -> 41`
-  - `malformed_json -> 51`
-  - `timeout_hang -> 61`
-  - `resource_block -> 71`
-  - `fail_hard -> 99`
-- **Scheduled lane (rotating deterministic seeds):** use a date-based seed derived from
-  `YYYYMMDD + profile` so each day explores a new pattern, but reruns on the same day/profile
-  stay reproducible.
+- **Scheduled lane (randomized):** each run randomly chooses baseline vs fault-injected mode.
+- **Fault-injected mode:** randomly selects profile and seed per run for broader exploration.
 - **Local debugging:** pin one seed while diagnosing (`--seed 21`), then vary seed values
   for robustness sweeps (`--seed 22`, `--seed 23`, ...).
 
 Quick examples:
 
 ```bash
-# reproducible CI-like run
-reliabilitykit run --chaos latency_light --seed 21 -- tests/e2e -m chaos
+# baseline API run
+reliabilitykit run --surface api --scan-pack core_reliability_scan
 
 # robustness sweep
-reliabilitykit run --chaos latency_light --seed 21 --repeat 3 -- tests/e2e -m chaos
-reliabilitykit run --chaos latency_light --seed 22 --repeat 3 -- tests/e2e -m chaos
+reliabilitykit run --surface api --scan-pack core_reliability_scan --chaos latency_light --seed 21 --repeat 3
+reliabilitykit run --surface api --scan-pack core_reliability_scan --chaos latency_light --seed 22 --repeat 3
 ```
 
 ## CI Notes
@@ -212,8 +202,8 @@ reliabilitykit run --chaos latency_light --seed 22 --repeat 3 -- tests/e2e -m ch
 Run records automatically include basic CI metadata when `CI` or `GITHUB_ACTIONS` is present.
 
 - PR CI: `.github/workflows/ci.yml` runs unit tests on pull requests.
-- Scheduled CI: `.github/workflows/ci-scheduled.yml` runs full Playwright e2e and supports
-  workflow dispatch seed strategy input (`daily` or `fixed`).
+- Scheduled CI: `.github/workflows/ci-scheduled.yml` runs API `core_reliability_scan` and
+  randomizes baseline vs fault-injected mode each scheduled run.
 
 ## Current Test Layout
 
