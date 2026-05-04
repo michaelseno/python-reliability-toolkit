@@ -27,7 +27,7 @@ and HTML reports so every run becomes analyzable data.
 - S3 architecture plan: `docs/s3-architecture-plan.md`
 - AWS Lambda dashboard build: `docs/aws-phase-d-lambda.md`
 
-Root-level UPPER_SNAKE_CASE files are compatibility stubs that point to canonical docs in `docs/`.
+Archived root-level compatibility stubs now live in `docs/archive/`.
 
 ## Quickstart (uv + venv)
 
