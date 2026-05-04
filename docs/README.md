@@ -1,7 +1,7 @@
 # Documentation
 
-Canonical project documentation lives in this directory. Root-level documentation
-files are compatibility stubs that point here.
+Canonical project documentation lives in this directory. Historical root-level
+compatibility stubs live in `archive/`.
 
 ## Guides
 

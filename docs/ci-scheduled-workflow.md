@@ -55,7 +55,7 @@ When enabled, scheduled campaign randomly selects one profile from this CI set:
 ## Current Limitation
 
 Each runner is ephemeral. Without external persistence, history is fragmented per run artifact.
-See `docs/s3-architecture-plan.md` for persistent dashboard strategy.
+See `s3-architecture-plan.md` for persistent dashboard strategy.
 
 ## S3 Lifecycle Retention
 
@@ -67,7 +67,7 @@ For cost control, apply lifecycle policy to expire historical run artifacts whil
 
 Reference policy file:
 
-- `docs/s3-lifecycle-policy.json`
+- `s3-lifecycle-policy.json`
 
 Apply policy:
 
