@@ -70,4 +70,4 @@ The implementation surfaces operator-readable CLI status for validation, artifac
 - Post-retention deletion/archive policy remains unresolved by design and was not implemented.
 
 ## 12. Commit Status
-Commit not created yet; pending final git commit after documentation update.
+Committed as `856b2fd` (`feat(backend): implement api reliability audit mvp`).
