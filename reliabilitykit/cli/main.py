@@ -8,6 +8,7 @@ from reliabilitykit.cli.commands.inspect import inspect_runs
 from reliabilitykit.cli.commands.report import report_run
 from reliabilitykit.cli.commands.run import run_tests
 from reliabilitykit.cli.commands.trend import trend_report
+from reliabilitykit.cli.commands.audit import audit_app
 
 app = typer.Typer(
     help=(
@@ -25,6 +26,7 @@ app.command("dashboard")(dashboard_report)
 chaos_app.command("list")(list_chaos_profiles)
 chaos_app.command("show")(show_chaos_profile)
 app.add_typer(chaos_app, name="chaos")
+app.add_typer(audit_app, name="audit")
 
 
 if __name__ == "__main__":
