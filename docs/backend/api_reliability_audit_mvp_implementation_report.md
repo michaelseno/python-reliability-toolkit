@@ -80,4 +80,4 @@ The implementation surfaces operator-readable CLI status for validation, artifac
 - Post-retention deletion/archive policy remains unresolved by design and was not implemented.
 
 ## 12. Commit Status
-Committed as `856b2fd` (`feat(backend): implement api reliability audit mvp`). HITL correction commit pending at time of report update.
+Initial MVP committed as `856b2fd` (`feat(backend): implement api reliability audit mvp`). HITL corrections committed as `af20224` (`fix(backend): apply audit mvp hitl corrections`).
