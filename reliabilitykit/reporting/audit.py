@@ -85,7 +85,7 @@ AUDIT_REPORT_TEMPLATE = Template(
   <body>
     <main>
       <h1>48-Hour API Reliability Audit Report</h1>
-      <p class="note">Sanitized metadata report. Raw response bodies, raw headers, trace logs, bearer tokens, and secret references are excluded.</p>
+      <p class="note">Sanitized metadata report. Raw logs, raw responses, raw response bodies, raw headers, trace logs, stack traces, bearer tokens, and secret references are excluded.</p>
       <section>
         <h2>Audit Summary</h2>
         <div class="grid">
@@ -126,6 +126,7 @@ AUDIT_REPORT_TEMPLATE = Template(
         <h2>Privacy and Delivery Notes</h2>
         <ul>
           <li>Bearer token values are runtime-only and not present in this report.</li>
+          <li>Raw logs, raw responses, and stack traces are not included in this report or the sanitized CSV by default.</li>
           <li>CSV columns are limited to the approved sanitized metadata contract.</li>
           <li>Report delivery must use private S3 presigned URLs; public permanent URLs are prohibited.</li>
           <li>Sanitized metadata retention is 90 days before automated post-retention CSV email delivery.</li>

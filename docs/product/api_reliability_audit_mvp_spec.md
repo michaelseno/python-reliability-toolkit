@@ -1,14 +1,16 @@
 # Product Specification: 48-Hour API Reliability Audit MVP
 
-**Status:** Draft for planning review  
+**Status:** Authorized for full MVP implementation  
 **Artifact Owner:** Product Owner  
 **Repository:** `python_reliability_toolkit`  
 **Scope Type:** Manual/operator-assisted MVP, not SaaS  
-**Last Updated:** 2026-05-04
+**Last Updated:** 2026-05-05
 
 ## 1. Executive Summary
 
 The 48-Hour API Reliability Audit MVP is a manual/operator-assisted service offering built around the Python Reliability Toolkit. The service evaluates up to 10 API endpoints over a 48-hour period using scheduled checks, sanitized reporting, and private report delivery.
+
+Implementation of the full MVP described in this specification is authorized for branch `feature/api_reliability_audit_mvp`. The authorized implementation must preserve the manual/operator-assisted MVP scope and must not introduce SaaS onboarding, backend lead capture, payment, login, or self-service audit configuration.
 
 The MVP is designed to validate market demand for a packaged reliability audit before investing in SaaS workflows, automated onboarding, payment processing, customer accounts, or managed monitoring.
 
@@ -38,6 +40,7 @@ This MVP solves the problem by offering a bounded, 48-hour reliability audit tha
 - Build a SaaS product.
 - Build automated customer signup, login, payment, or self-service audit configuration.
 - Build form submission workflows on the landing page.
+- Build landing-page email submission, backend lead capture, or automated sales intake flows.
 - Provide continuous managed monitoring as part of the MVP.
 - Provide schema validation in the MVP.
 - Include resilience or burst testing in the default audit workflow.
@@ -78,7 +81,7 @@ This MVP solves the problem by offering a bounded, 48-hour reliability audit tha
 - Sanitized CSV export from the HTML report/dashboard.
 - Private S3 presigned URL delivery for report artifacts.
 - Sanitized metadata retention for 90 days.
-- Conversion/export of retained metadata to CSV after 90 days and email delivery to the client.
+- Automated conversion/export of retained metadata to CSV after 90 days and email delivery to the client using SMTP configuration supplied through environment variables.
 - Transient processing of raw API response bodies, headers, and trace logs without default persistence.
 - Written approval workflow for any raw data storage exception.
 - Written waiver/agreement for production API testing.
@@ -93,6 +96,7 @@ This MVP solves the problem by offering a bounded, 48-hour reliability audit tha
 - Payment processing.
 - Backend services for the landing page.
 - Contact form submission or lead capture form handling.
+- Landing-page email capture or CTA email/form submission flows.
 - Automated contract signing.
 - Automated production authorization verification.
 - Auth methods other than bearer token unless manually handled outside MVP scope.
@@ -109,8 +113,8 @@ This MVP solves the problem by offering a bounded, 48-hour reliability audit tha
 
 1. Prospective client reviews the static landing page.
 2. Client selects the CTA labeled “Request a Reliability Audit.”
-3. CTA sends the client to a placeholder destination.
-4. Operator manually coordinates audit intake outside the website.
+3. CTA navigates to the placeholder destination `#request-audit`.
+4. Operator manually coordinates audit intake outside the website; landing-page form submission, email submission, and backend lead capture are deferred and not part of this implementation.
 5. Client provides endpoint list, auth details, expected latency thresholds if available, and written authorization.
 6. Operator validates endpoint count and authorization.
 7. Operator executes the 48-hour audit.
@@ -152,6 +156,9 @@ This MVP solves the problem by offering a bounded, 48-hour reliability audit tha
 - The default audit duration must be 48 hours.
 - The default run frequency must be 5 checks per day.
 - The expected total number of check cycles must be approximately 10 over the 48-hour period.
+- `checks_per_day` must be configurable within MVP bounds of minimum 1 and maximum 24.
+- Values above the default 5 checks per day require an operator/client agreement reference before execution.
+- `expected_check_cycles` must be reconciled with the configured `checks_per_day` over the 48-hour duration.
 
 ### FR-3 Authentication
 
@@ -169,12 +176,12 @@ This MVP solves the problem by offering a bounded, 48-hour reliability audit tha
 
 - The audit must collect sanitized metadata needed to report reliability results.
 - Sanitized metadata may include endpoint identifier, method, path, timestamp, status code, availability result, latency, check cycle identifier, and sanitized error/category information.
-- Raw API response bodies, raw headers, and trace logs must be transient and must not be stored by default.
+- Raw API response bodies, raw responses, raw headers, raw logs, trace logs, and stack traces must be transient and must not be displayed or stored by default.
 
 ### FR-6 Raw Data Exception Handling
 
 - Raw data storage may occur only if explicitly demanded by the client and approved in writing.
-- Any raw data storage exception must be documented before collection.
+- Any raw diagnostic artifact collection, report inclusion/display, or persistence exception must be explicitly requested by the client and documented with written approval/reference before collection.
 - Raw data exception handling is not part of the default workflow.
 
 ### FR-7 Latency Thresholds
@@ -188,7 +195,7 @@ This MVP solves the problem by offering a bounded, 48-hour reliability audit tha
 
 - The audit must produce an HTML report/dashboard.
 - The HTML report/dashboard must include or link to a sanitized CSV export.
-- The report must avoid exposing bearer tokens, raw response bodies, raw headers, and trace logs.
+- The report must avoid exposing bearer tokens, raw logs, raw responses, raw response bodies, raw headers, trace logs, and stack traces.
 
 ### FR-9 Report Delivery
 
@@ -199,14 +206,15 @@ This MVP solves the problem by offering a bounded, 48-hour reliability audit tha
 ### FR-10 CSV Export
 
 - CSV exports must contain sanitized metadata only.
-- CSV exports must not contain bearer tokens, raw response bodies, raw headers, or trace logs.
+- CSV exports must not contain bearer tokens, raw logs, raw responses, raw response bodies, raw headers, trace logs, or stack traces.
 
 ### FR-11 Retention and Post-Retention Export
 
 - Sanitized metadata must be retained for 90 days.
 - After 90 days, retained metadata must be converted/exported to CSV.
 - The post-retention CSV must be emailed to the client.
-- The retained metadata must not include raw response bodies, raw headers, or trace logs unless a written raw data exception exists.
+- Post-retention CSV email delivery must be automated through SMTP settings provided by environment variables.
+- The retained metadata must not include raw logs, raw responses, stack traces, raw response bodies, raw headers, or trace logs unless an explicit client request and written raw data approval/reference exists.
 
 ### FR-12 Optional Resilience/Burst Testing
 
@@ -220,7 +228,8 @@ This MVP solves the problem by offering a bounded, 48-hour reliability audit tha
 - The landing page must be informational only.
 - The landing page must not include backend functionality, payment, login, or form submission in the MVP.
 - The CTA text must be exactly: “Request a Reliability Audit.”
-- The CTA destination may be a placeholder for the MVP.
+- The CTA destination must be the placeholder anchor `#request-audit`.
+- The CTA must not submit a form, open an email submission flow, call a backend API, initiate payment, or create/login to an account.
 
 ## 9. Privacy, Safety, Authorization Requirements
 
@@ -231,7 +240,8 @@ This MVP solves the problem by offering a bounded, 48-hour reliability audit tha
 - Bearer tokens must be treated as confidential secrets.
 - Customer-facing reports and CSV exports must contain sanitized metadata only.
 - Raw response bodies, headers, and trace logs must be transient and not stored by default.
-- Raw data storage requires explicit written client demand and written approval.
+- Raw logs, raw responses, raw response bodies, raw headers, trace logs, and stack traces must not be displayed or persisted by default.
+- Any raw diagnostic artifact collection, report inclusion/display, or persistence requires explicit written client demand and written approval/reference.
 - Reports must be delivered only through private S3 presigned URLs.
 
 ## 10. Static Landing Page Requirements
@@ -254,7 +264,8 @@ Landing page constraints:
 - Must not include login.
 - Must not include payment processing.
 - Must not submit forms.
-- CTA destination may remain a placeholder.
+- Must not include email capture or backend lead capture.
+- CTA destination must be the placeholder anchor `#request-audit`.
 
 ## 11. Pricing/Package Assumptions
 
@@ -340,7 +351,11 @@ Then sanitized metadata must be retained for 90 days.
 
 Given sanitized metadata reaches the 90-day retention point  
 When retention expires  
-Then the metadata must be converted/exported to CSV and emailed to the client.
+Then the metadata must be converted/exported to CSV and emailed to the client through the automated SMTP-based delivery workflow configured by environment variables.
+
+Given the SMTP environment variable configuration is missing or invalid  
+When the post-retention CSV email workflow attempts delivery  
+Then email delivery must not silently succeed and the failure must be surfaced for operator remediation without exposing secrets in customer-facing artifacts.
 
 ### AC-10 Optional Resilience/Burst Approval
 
@@ -368,6 +383,18 @@ Given a standard 48-hour audit is configured
 When the default run frequency is used  
 Then checks must run 5 times per day for approximately 10 total check cycles.
 
+Given a standard 48-hour audit is configured  
+When `checks_per_day` is set below 1 or above 24  
+Then validation must block execution.
+
+Given a standard 48-hour audit is configured  
+When `checks_per_day` is greater than the default 5 without an operator/client agreement reference  
+Then validation must block execution.
+
+Given a standard 48-hour audit is configured  
+When `checks_per_day` is configured within bounds  
+Then `expected_check_cycles` must match the configured frequency over 48 hours.
+
 ### AC-13 Static Landing Page Content and CTA
 
 Given the Phase 1 landing page is created  
@@ -378,9 +405,13 @@ Given the Phase 1 landing page CTA is displayed
 When a visitor reads the CTA  
 Then the CTA text must be exactly “Request a Reliability Audit.”
 
+Given the Phase 1 landing page CTA is displayed  
+When a visitor activates the CTA  
+Then the CTA must navigate to `#request-audit` only.
+
 Given the Phase 1 landing page is implemented for MVP  
 When the page is reviewed  
-Then it must not include backend functionality, payment processing, login, or form submission.
+Then it must not include backend functionality, payment processing, login, form submission, email submission, or lead capture.
 
 ## 13. Metrics / Success Criteria
 
@@ -408,17 +439,17 @@ Then it must not include backend functionality, payment processing, login, or fo
 
 ### Open Questions
 
-- What exact placeholder destination should the landing page CTA use?
 - What is the required format and storage location for written waivers/agreements and internal approval checklists?
-- Who is responsible for sending the 90-day CSV email to the client: operator, automated job, or another process?
 - What expiration duration should be used for S3 presigned report URLs?
-- What email address or delivery mechanism should be used for post-retention CSV delivery?
+- What exact SMTP environment variable names and required fields will implementation standardize for automated post-retention CSV email delivery?
+- What sender email address and support/remediation recipient should be used for automated SMTP delivery failures?
 
 ### Deferred Decisions
 
 - Whether to add schema validation based on customer demand.
 - Whether to include additional endpoint pricing after the process is proven.
 - Whether to create SaaS onboarding, payment, login, or self-service configuration.
+- Whether to add landing-page CTA form submission, email submission, or lead capture after MVP validation.
 - Whether to formalize managed monitoring starting at $399/month.
 - Whether to standardize non-bearer-token authentication methods.
 
@@ -459,6 +490,7 @@ Then it must not include backend functionality, payment processing, login, or fo
 - Define sanitized metadata schema.
 - Define report artifact generation and S3 presigned URL delivery approach.
 - Define 90-day retention and post-retention CSV export/email workflow.
+- Define SMTP environment variable contract and failure handling for automated post-retention CSV email delivery.
 - Define controls preventing default raw body/header/trace persistence.
 
 ### UI/UX Dependencies

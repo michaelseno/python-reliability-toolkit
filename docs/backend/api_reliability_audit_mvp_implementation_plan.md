@@ -6,10 +6,13 @@ Implement the backend/core/reporting/storage/retention portion of the manual/ope
 ## 2. Technical Scope
 Add audit domain models and fail-closed validation, sanitized check execution metadata, HTML/CSV reporting, private S3 presigned artifact delivery helpers, 90-day retention ledger processing, SMTP environment-variable parsing and delivery, and operator CLI commands. Preserve the existing CLI-first toolkit and do not add customer-facing APIs or landing-page backend behavior.
 
+HITL correction scope updates schedule validation so `checks_per_day` remains defaulted to 5 but is configurable from 1 through 24, requires an operator/client agreement reference when increased above 5, and reconciles `expected_check_cycles` with the configured frequency. It also strengthens the raw diagnostic artifact gate so raw logs, raw responses, and stack traces are excluded from display and persistence by default and require explicit client request plus written approval/reference for any collection, inclusion, or persistence exception.
+
 ## 3. Source Inputs
 - `docs/architecture/api_reliability_audit_mvp_architecture.md`
 - `docs/product/api_reliability_audit_mvp_spec.md`
 - `docs/qa/api_reliability_audit_mvp_test_plan.md`
+- `docs/bugs/api_reliability_audit_mvp_hitl_corrections_bug_report.md`
 - `docs/release/api_reliability_audit_mvp_implementation_issue.md`
 - Existing `reliabilitykit` CLI/core/reporting/storage/test conventions.
 
@@ -20,6 +23,9 @@ Operator-facing CLI commands will be added under `reliabilitykit audit` for vali
 
 ## 5. Data Models / Storage Affected
 - New audit models: `AuditConfig`, `AuditEndpoint`, `BearerAuthConfig`, `PrivacyPolicy`, `RetentionPolicy`, `EndpointAuditResult`, `AuditResult`, and `RetentionRecord`.
+- `AuditConfig.checks_per_day` validation changes to min `1`, max `24`; `AuditConfig.check_frequency_agreement_reference` is required only when `checks_per_day > 5`.
+- `AuditConfig.expected_check_cycles` must equal `schedule_duration_hours * checks_per_day / 24` for the standard 48-hour audit.
+- `PrivacyPolicy` adds explicit raw diagnostic artifact flags for raw logs, raw responses, and stack traces; all default false and all require both explicit request and written approval/reference when enabled.
 - Local sanitized workspace under `.reliabilitykit/audits/` and `.reliabilitykit/retention/` only.
 - CSV contract exactly: `audit_id`, `check_cycle_id`, `endpoint_id`, `method`, `path`, `timestamp`, `status_code`, `available`, `latency_ms`, `expected_latency_ms`, `latency_status`, `error_category`, `error_summary`.
 - Private S3 object upload/presign helper; no public ACL or permanent URL behavior.
@@ -38,6 +44,8 @@ Operator-facing CLI commands will be added under `reliabilitykit audit` for vali
 ## 7. Security / Authorization Considerations
 Production audits fail closed without waiver and internal approval references. Resilience/burst execution remains outside the standard workflow and is blocked without a separate approval reference. Bearer token values are read from runtime env vars only and are not serialized to models, reports, CSV, logs, S3 keys, emails, or errors. Raw bodies, raw headers, and trace logs are not stored by default; raw storage flags require a documented exception reference.
 
+Frequency increases above the default are blocked unless an operator/client agreement reference is captured. Raw logs, raw responses, and stack traces are not included in generated reports, CSV exports, local sanitized workspace files, retention exports, email payloads, or S3 artifacts by default.
+
 ## 8. Dependencies / Constraints
 No new required dependency will be added. S3 support will use optional `boto3` when available or an injected test/client object. SMTP uses Python standard-library `smtplib`/`email` and environment variables defined by the architecture.
 
@@ -46,7 +54,10 @@ No new required dependency will be added. S3 support will use optional `boto3` w
 - Latency equal to threshold is treated as `pass` because the observed latency is not greater than the client threshold.
 - Endpoint identity normalizes HTTP method to uppercase and uses the provided path string as the path identity.
 - Source sanitized metadata is retained after successful retention email because deletion/archive is explicitly open in the design.
+- The operator/client agreement reference for `checks_per_day > 5` is represented as `check_frequency_agreement_reference`; this is a reference string only and is not rendered in customer-facing artifacts.
+- For the 48-hour standard audit, expected check cycles are derived exactly as `(48 * checks_per_day) / 24`, yielding `2 * checks_per_day`.
+- Existing raw body/header/trace exception references are reused as the explicit request and written approval gate for raw logs, raw responses, and stack traces to avoid adding a separate approval workflow.
 
 ## 10. Validation Plan
-- `python -m pytest tests/unit/test_api_reliability_audit_mvp.py tests/unit/test_cli_commands.py tests/unit/test_storage_local.py`
+- `./.venv/bin/python -m pytest tests/unit/test_api_reliability_audit_mvp.py tests/unit/test_cli_commands.py tests/unit/test_storage_local.py`
 - Broader unit suite if feasible: `python -m pytest tests/unit`

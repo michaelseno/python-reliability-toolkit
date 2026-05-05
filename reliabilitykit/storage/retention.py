@@ -113,12 +113,12 @@ def build_retention_email(record: RetentionRecord, config: SmtpDeliveryConfig, c
         msg.set_content(
             "Your sanitized API reliability audit metadata has reached its 90-day retention point. "
             "Download the sanitized CSV using this private time-limited link:\n\n"
-            f"{presigned_url}\n\nNo raw response bodies, raw headers, trace logs, or secrets are included."
+            f"{presigned_url}\n\nNo raw logs, raw responses, stack traces, raw response bodies, raw headers, trace logs, or secrets are included."
         )
     else:
         msg.set_content(
             "Your sanitized API reliability audit metadata has reached its 90-day retention point. "
-            "The sanitized CSV export is attached. No raw response bodies, raw headers, trace logs, or secrets are included."
+            "The sanitized CSV export is attached. No raw logs, raw responses, stack traces, raw response bodies, raw headers, trace logs, or secrets are included."
         )
         msg.add_attachment(csv_path.read_bytes(), maintype="text", subtype="csv", filename=csv_path.name)
     return msg

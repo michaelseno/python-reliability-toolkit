@@ -22,6 +22,8 @@ DeliveryMode = Literal["attachment", "presigned_s3_link"]
 MAX_STANDARD_ENDPOINTS = 10
 DEFAULT_DURATION_HOURS = 48
 DEFAULT_CHECKS_PER_DAY = 5
+MIN_CHECKS_PER_DAY = 1
+MAX_CHECKS_PER_DAY = 24
 DEFAULT_EXPECTED_CHECK_CYCLES = 10
 RETENTION_DAYS = 90
 REQUEST_TIMEOUT_SECONDS = 10
@@ -121,15 +123,39 @@ class PrivacyPolicy(BaseModel):
     store_raw_bodies: bool = False
     store_raw_headers: bool = False
     store_trace_logs: bool = False
+    collect_raw_logs: bool = False
+    include_raw_logs: bool = False
+    persist_raw_logs: bool = False
+    collect_raw_responses: bool = False
+    include_raw_responses: bool = False
+    persist_raw_responses: bool = False
+    collect_stack_traces: bool = False
+    include_stack_traces: bool = False
+    persist_stack_traces: bool = False
     raw_data_exception_reference: str | None = None
     raw_data_written_demand_reference: str | None = None
     sanitized_metadata_retention_days: int = RETENTION_DAYS
 
     @model_validator(mode="after")
     def validate_raw_data_exception(self) -> "PrivacyPolicy":
-        raw_requested = self.store_raw_bodies or self.store_raw_headers or self.store_trace_logs
+        raw_requested = any(
+            (
+                self.store_raw_bodies,
+                self.store_raw_headers,
+                self.store_trace_logs,
+                self.collect_raw_logs,
+                self.include_raw_logs,
+                self.persist_raw_logs,
+                self.collect_raw_responses,
+                self.include_raw_responses,
+                self.persist_raw_responses,
+                self.collect_stack_traces,
+                self.include_stack_traces,
+                self.persist_stack_traces,
+            )
+        )
         if raw_requested and not (self.raw_data_exception_reference and self.raw_data_written_demand_reference):
-            raise ValueError("raw data storage requires written demand and approval references")
+            raise ValueError("raw diagnostic artifact collection, inclusion, or persistence requires explicit client request and written approval references")
         if self.sanitized_metadata_retention_days != RETENTION_DAYS:
             raise ValueError("sanitized metadata retention must be 90 days")
         return self
@@ -160,6 +186,7 @@ class AuditConfig(BaseModel):
     schedule_duration_hours: int = DEFAULT_DURATION_HOURS
     checks_per_day: int = DEFAULT_CHECKS_PER_DAY
     expected_check_cycles: int = DEFAULT_EXPECTED_CHECK_CYCLES
+    check_frequency_agreement_reference: str | None = None
     privacy_policy: PrivacyPolicy = Field(default_factory=PrivacyPolicy)
     resilience_burst_requested: bool = False
     resilience_burst_approval_reference: str | None = None
@@ -256,10 +283,22 @@ def validate_audit_config(config: AuditConfig) -> None:
         raise AuditValidationError("resilience/burst testing requires separate written approval")
     if config.schedule_duration_hours != DEFAULT_DURATION_HOURS:
         raise AuditValidationError("standard audit schedule duration must be 48 hours")
-    if config.checks_per_day != DEFAULT_CHECKS_PER_DAY:
-        raise AuditValidationError("standard audit checks_per_day must be 5")
-    if config.expected_check_cycles != DEFAULT_EXPECTED_CHECK_CYCLES:
-        raise AuditValidationError("standard audit expected_check_cycles must be approximately 10")
+    if not MIN_CHECKS_PER_DAY <= config.checks_per_day <= MAX_CHECKS_PER_DAY:
+        raise AuditValidationError("standard audit checks_per_day must be between 1 and 24")
+    if config.checks_per_day > DEFAULT_CHECKS_PER_DAY and not config.check_frequency_agreement_reference:
+        raise AuditValidationError("checks_per_day above the default 5 requires an operator/client agreement reference")
+    expected_cycles = expected_check_cycles_for(config.schedule_duration_hours, config.checks_per_day)
+    if config.expected_check_cycles != expected_cycles:
+        raise AuditValidationError(
+            f"standard audit expected_check_cycles must be {expected_cycles} for {config.schedule_duration_hours} hours at {config.checks_per_day} checks per day"
+        )
+
+
+def expected_check_cycles_for(schedule_duration_hours: int, checks_per_day: int) -> int:
+    cycles = schedule_duration_hours * checks_per_day
+    if cycles % 24 != 0:
+        raise AuditValidationError("standard audit expected_check_cycles must resolve to whole check cycles")
+    return cycles // 24
 
 
 def make_retention_record(config: AuditConfig, metadata_location: str, started_at: datetime | None = None) -> RetentionRecord:

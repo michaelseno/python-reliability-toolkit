@@ -25,6 +25,8 @@ SENTINEL_TOKEN = "qa_bearer_token_must_not_leak_12345"
 SENTINEL_BODY = "qa_raw_body_must_not_persist_12345"
 SENTINEL_HEADER = "qa_raw_header_must_not_persist_12345"
 SENTINEL_TRACE = "qa_trace_log_must_not_persist_12345"
+SENTINEL_RAW_LOG = "qa_raw_log_must_not_persist_12345"
+SENTINEL_STACK_TRACE = "qa_stack_trace_must_not_persist_12345"
 SENTINEL_SMTP_PASSWORD = "qa_smtp_password_must_not_leak_12345"
 
 
@@ -70,7 +72,7 @@ def result_for_report() -> AuditResult:
                 available=True,
                 latency_ms=150,
                 expected_latency_ms=200,
-                error_summary=f"safe {SENTINEL_TOKEN} {SENTINEL_BODY} {SENTINEL_HEADER} {SENTINEL_TRACE}",
+                error_summary=f"safe {SENTINEL_TOKEN} {SENTINEL_BODY} {SENTINEL_HEADER} {SENTINEL_TRACE} {SENTINEL_RAW_LOG} {SENTINEL_STACK_TRACE}",
             ),
             EndpointAuditResult(
                 audit_id="audit-001",
@@ -111,7 +113,7 @@ def test_ac2_ac3_production_authorization_gates() -> None:
 
 
 def test_ac7_raw_data_exception_requires_written_demand_and_approval() -> None:
-    with pytest.raises(Exception, match="written demand and approval"):
+    with pytest.raises(Exception, match="explicit client request and written approval"):
         PrivacyPolicy(store_raw_bodies=True)
     policy = PrivacyPolicy(
         store_raw_bodies=True,
@@ -119,6 +121,34 @@ def test_ac7_raw_data_exception_requires_written_demand_and_approval() -> None:
         raw_data_written_demand_reference="demand-1",
     )
     assert policy.store_raw_bodies is True
+
+
+@pytest.mark.parametrize(
+    "flag",
+    [
+        "collect_raw_logs",
+        "include_raw_logs",
+        "persist_raw_logs",
+        "collect_raw_responses",
+        "include_raw_responses",
+        "persist_raw_responses",
+        "collect_stack_traces",
+        "include_stack_traces",
+        "persist_stack_traces",
+    ],
+)
+def test_hitl_raw_logs_responses_and_stack_traces_fail_closed_without_request_and_approval(flag: str) -> None:
+    with pytest.raises(Exception, match="explicit client request and written approval"):
+        PrivacyPolicy(**{flag: True})
+
+    approved = PrivacyPolicy(
+        **{
+            flag: True,
+            "raw_data_exception_reference": "raw-approval-1",
+            "raw_data_written_demand_reference": "client-request-1",
+        }
+    )
+    assert getattr(approved, flag) is True
 
 
 def test_ac10_resilience_burst_gate() -> None:
@@ -143,6 +173,25 @@ def test_ac11_ac12_default_schedule_and_latency_threshold_behavior() -> None:
     assert row_observed.latency_status == "observed_only"
 
 
+def test_hitl_checks_per_day_is_configurable_with_bounds_agreement_and_reconciled_cycles() -> None:
+    min_cfg = config(checks_per_day=1, expected_check_cycles=2)
+    assert min_cfg.checks_per_day == 1
+    assert min_cfg.expected_check_cycles == 2
+
+    max_cfg = config(checks_per_day=24, expected_check_cycles=48, check_frequency_agreement_reference="freq-agreement-24")
+    assert max_cfg.checks_per_day == 24
+    assert max_cfg.expected_check_cycles == 48
+
+    with pytest.raises(Exception, match="between 1 and 24"):
+        config(checks_per_day=0, expected_check_cycles=0)
+    with pytest.raises(Exception, match="between 1 and 24"):
+        config(checks_per_day=25, expected_check_cycles=50, check_frequency_agreement_reference="freq-agreement-25")
+    with pytest.raises(Exception, match="agreement reference"):
+        config(checks_per_day=6, expected_check_cycles=12)
+    with pytest.raises(Exception, match="expected_check_cycles must be 12"):
+        config(checks_per_day=6, expected_check_cycles=10, check_frequency_agreement_reference="freq-agreement-6")
+
+
 def test_ac4_ac6_ac8_reports_and_csv_are_sanitized(tmp_path: Path) -> None:
     cfg = config()
     result = result_for_report()
@@ -155,7 +204,7 @@ def test_ac4_ac6_ac8_reports_and_csv_are_sanitized(tmp_path: Path) -> None:
     assert rows[0]["latency_status"] == "pass"
     assert rows[1]["latency_status"] == "observed_only"
     combined = csv_path.read_text(encoding="utf-8") + html_path.read_text(encoding="utf-8")
-    for forbidden in [SENTINEL_TOKEN, SENTINEL_BODY, SENTINEL_HEADER, SENTINEL_TRACE, "Authorization"]:
+    for forbidden in [SENTINEL_TOKEN, SENTINEL_BODY, SENTINEL_HEADER, SENTINEL_TRACE, SENTINEL_RAW_LOG, SENTINEL_STACK_TRACE, "Authorization"]:
         assert forbidden not in combined
 
 
