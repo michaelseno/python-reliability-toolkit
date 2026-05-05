@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>48-Hour API Reliability Audit</title>
+  <meta name="description" content="A manual, operator-assisted 48-hour API reliability audit for up to 10 endpoints with sanitized reporting and private delivery.">
+  <style>
+    :root {
+      --background: #f8fafc;
+      --surface: #ffffff;
+      --surface-muted: #eef6ff;
+      --text: #102033;
+      --muted: #4b5f74;
+      --border: #c9d8e8;
+      --accent: #0b5cad;
+      --accent-dark: #073f78;
+      --accent-soft: #dbeafe;
+      --safety: #0f766e;
+      --warning: #92400e;
+      --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: var(--background);
+      line-height: 1.6;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration-thickness: 0.12em;
+      text-underline-offset: 0.18em;
+    }
+
+    a:hover {
+      color: var(--accent-dark);
+    }
+
+    a:focus-visible {
+      outline: 3px solid #f59e0b;
+      outline-offset: 4px;
+      border-radius: 0.35rem;
+    }
+
+    .site-header {
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .container {
+      width: min(1120px, calc(100% - 2rem));
+      margin: 0 auto;
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 0;
+    }
+
+    .brand {
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    nav ul {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    nav a:not(.cta) {
+      color: var(--text);
+      font-weight: 650;
+      text-decoration: none;
+    }
+
+    nav a:not(.cta):hover {
+      text-decoration: underline;
+    }
+
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0.78rem 1.05rem;
+      border: 2px solid var(--accent);
+      border-radius: 999px;
+      background: var(--accent);
+      color: #ffffff;
+      font-weight: 800;
+      text-decoration: none;
+      box-shadow: 0 8px 20px rgba(11, 92, 173, 0.2);
+    }
+
+    .cta:hover {
+      background: var(--accent-dark);
+      border-color: var(--accent-dark);
+      color: #ffffff;
+      text-decoration: underline;
+    }
+
+    .cta:active {
+      transform: translateY(1px);
+      box-shadow: none;
+    }
+
+    main section {
+      padding: 4rem 0;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #0f2742 0%, #0b5cad 100%);
+      color: #ffffff;
+      padding: 5rem 0;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+      gap: 2rem;
+      align-items: center;
+    }
+
+    .eyebrow {
+      margin: 0 0 0.75rem;
+      color: #bfdbfe;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.82rem;
+    }
+
+    h1,
+    h2,
+    h3 {
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.45rem, 7vw, 4.75rem);
+      max-width: 12ch;
+    }
+
+    h2 {
+      margin: 0 0 1rem;
+      font-size: clamp(1.8rem, 4vw, 2.75rem);
+    }
+
+    h3 {
+      margin: 0 0 0.5rem;
+      font-size: 1.2rem;
+    }
+
+    .lead {
+      font-size: clamp(1.08rem, 2.5vw, 1.35rem);
+      max-width: 66ch;
+    }
+
+    .hero .lead,
+    .hero .note {
+      color: #e0f2fe;
+    }
+
+    .hero-panel,
+    .card,
+    .price-card,
+    .request-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1.25rem;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-panel {
+      color: var(--text);
+      padding: 1.5rem;
+    }
+
+    .hero-panel ul,
+    .check-list,
+    .faq-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .hero-panel li,
+    .check-list li {
+      margin: 0.65rem 0;
+      padding-left: 1.75rem;
+      position: relative;
+    }
+
+    .hero-panel li::before,
+    .check-list li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--safety);
+      font-weight: 900;
+    }
+
+    .section-intro {
+      max-width: 760px;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .card,
+    .price-card {
+      padding: 1.4rem;
+    }
+
+    .safety-section {
+      background: var(--surface-muted);
+      border-block: 1px solid var(--border);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      font-weight: 800;
+      font-size: 0.82rem;
+    }
+
+    .price {
+      margin: 0.4rem 0;
+      font-size: 2.25rem;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .steps {
+      counter-reset: step;
+      display: grid;
+      gap: 1rem;
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+
+    .steps li {
+      counter-increment: step;
+      display: grid;
+      grid-template-columns: 3rem 1fr;
+      gap: 1rem;
+      align-items: start;
+      padding: 1.1rem;
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      background: var(--surface);
+    }
+
+    .steps li::before {
+      content: counter(step);
+      display: inline-grid;
+      place-items: center;
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #ffffff;
+      font-weight: 900;
+    }
+
+    .faq-list li {
+      padding: 1.25rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .faq-list li:first-child {
+      border-top: 1px solid var(--border);
+    }
+
+    .request-section {
+      background: #0f2742;
+      color: #ffffff;
+    }
+
+    .request-panel {
+      color: var(--text);
+      padding: clamp(1.5rem, 5vw, 2.5rem);
+    }
+
+    #request-audit:target .request-panel,
+    #request-audit:focus-within .request-panel {
+      outline: 4px solid #f59e0b;
+      outline-offset: 6px;
+    }
+
+    .scope-warning {
+      border-left: 5px solid var(--warning);
+      padding: 0.9rem 1rem;
+      background: #fff7ed;
+      color: #5f2f04;
+      border-radius: 0.75rem;
+    }
+
+    footer {
+      padding: 2rem 0;
+      background: #071629;
+      color: #dbeafe;
+    }
+
+    @media (max-width: 880px) {
+      .header-inner,
+      nav ul,
+      .hero-grid {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .header-inner {
+        display: grid;
+      }
+
+      nav ul,
+      .hero-grid,
+      .grid,
+      .grid.two {
+        grid-template-columns: 1fr;
+      }
+
+      nav ul {
+        display: grid;
+      }
+    }
+
+    @media (min-width: 881px) and (max-width: 1080px) {
+      .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">Python Reliability Toolkit</div>
+      <nav aria-label="Primary navigation">
+        <ul>
+          <li><a href="#included">Included</a></li>
+          <li><a href="#safety">Safety</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="#faq">FAQ</a></li>
+          <li><a class="cta" href="#request-audit">Request a Reliability Audit</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="container hero-grid">
+        <div>
+          <p class="eyebrow">Manual/operator-assisted MVP • not SaaS</p>
+          <h1 id="hero-title">48-hour API Reliability Audit</h1>
+          <p class="lead">Get a bounded reliability snapshot for up to 10 API endpoints before a launch, demo, fundraising event, rollout, or handoff—without adopting ongoing monitoring software.</p>
+          <p><a class="cta" href="#request-audit">Request a Reliability Audit</a></p>
+          <p class="note">Static information only. Audit intake, authorization, and delivery are coordinated manually outside this website.</p>
+        </div>
+        <aside class="hero-panel" aria-labelledby="hero-panel-title">
+          <h2 id="hero-panel-title">Standard audit scope</h2>
+          <ul>
+            <li>48-hour review window</li>
+            <li>Up to 10 unique <code>METHOD + PATH</code> endpoints</li>
+            <li>Default 5 checks per day, approximately 10 cycles</li>
+            <li>Static HTML report/dashboard plus sanitized CSV</li>
+            <li>Private S3 presigned URL delivery</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <section id="value" aria-labelledby="value-heading">
+      <div class="container">
+        <h2 id="value-heading">Problem and value proposition</h2>
+        <p class="section-intro">Small teams often need evidence that an API is responsive and consistently available, but a full monitoring platform can be too heavy for a short decision window. This audit packages a focused 48-hour evidence pass with clear safety boundaries and stakeholder-friendly outputs.</p>
+        <div class="grid two">
+          <article class="card">
+            <h3>Useful before high-stakes moments</h3>
+            <p>Validate reliability assumptions before launch, customer rollout, client handoff, demo day, or fundraising conversations.</p>
+          </article>
+          <article class="card">
+            <h3>Evidence without SaaS onboarding</h3>
+            <p>The MVP is operator-assisted. There is no account area, payment flow, self-service configuration, or continuous monitoring setup on this page.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="included" aria-labelledby="included-heading">
+      <div class="container">
+        <h2 id="included-heading">What’s included</h2>
+        <p class="section-intro">The standard package is intentionally narrow so testing remains safe, understandable, and practical for production-like APIs.</p>
+        <div class="grid">
+          <article class="card"><h3>48-hour window</h3><p>Checks run across a two-day audit period.</p></article>
+          <article class="card"><h3>Endpoint cap</h3><p>Up to 10 unique <code>METHOD + PATH</code> combinations are included.</p></article>
+          <article class="card"><h3>Check frequency</h3><p>Default frequency is 5 checks per day, approximately 10 total cycles. Higher frequencies require operator/client agreement before execution.</p></article>
+          <article class="card"><h3>HTML report/dashboard</h3><p>A static customer-facing report summarizes scope, availability, status behavior, latency, and sanitized categories.</p></article>
+          <article class="card"><h3>Sanitized CSV</h3><p>CSV export contains approved metadata only and excludes tokens, raw bodies, raw headers, and trace logs.</p></article>
+          <article class="card"><h3>Private delivery</h3><p>Report artifacts are delivered through private S3 presigned URLs, not public permanent links.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="safety" class="safety-section" aria-labelledby="safety-heading">
+      <div class="container">
+        <h2 id="safety-heading">Privacy and safety guarantees</h2>
+        <p class="section-intro">The audit is designed to minimize production risk and sensitive data exposure.</p>
+        <ul class="check-list grid two">
+          <li>Production API testing requires written client waiver/agreement and internal approval before execution.</li>
+          <li>Bearer tokens are treated as confidential credentials and excluded from reports and CSV exports.</li>
+          <li>Reports and CSV exports contain sanitized metadata only.</li>
+          <li>Raw logs, raw responses, raw response bodies, raw headers, trace logs, and stack traces are not displayed or persisted by default.</li>
+          <li>Any raw diagnostic artifact collection, display, inclusion, or persistence exception requires explicit client request plus written approval/reference.</li>
+          <li>Sanitized metadata is retained for 90 days, then exported to CSV and emailed through the approved retention workflow.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="pricing" aria-labelledby="pricing-heading">
+      <div class="container">
+        <h2 id="pricing-heading">Pricing</h2>
+        <p class="section-intro">Pricing reflects the MVP validation package and keeps optional work clearly separate from the standard audit.</p>
+        <div class="grid">
+          <article class="price-card">
+            <span class="badge">Standard MVP audit</span>
+            <p class="price">$750</p>
+            <p>One 48-hour API Reliability Audit covering up to 10 endpoints.</p>
+          </article>
+          <article class="price-card">
+            <span class="badge">Limited validation price</span>
+            <p class="price">$500</p>
+            <p>Optional early validation pricing for limited first audits when offered.</p>
+          </article>
+          <article class="price-card">
+            <span class="badge">Separate written approval required</span>
+            <p class="price">+$300</p>
+            <p>Optional resilience/burst add-on during validation; later add-on pricing may be +$500. It is not part of the standard audit workflow.</p>
+          </article>
+        </div>
+        <p class="muted">Future managed monitoring may start at $399/month, but it is not part of this manual MVP and is not available through this static page.</p>
+      </div>
+    </section>
+
+    <section id="process" aria-labelledby="process-heading">
+      <div class="container">
+        <h2 id="process-heading">How it works</h2>
+        <ol class="steps">
+          <li><div><h3>Request interest</h3><p>Use the same-page CTA to reach the static request placeholder. No information is submitted by this website.</p></div></li>
+          <li><div><h3>Manual intake</h3><p>An operator coordinates endpoint inventory, auth handling, latency thresholds if available, and scope details outside the website.</p></div></li>
+          <li><div><h3>Authorization and approval</h3><p>Written authorization is required, and production APIs require both client waiver/agreement and internal approval before testing.</p></div></li>
+          <li><div><h3>48-hour checks</h3><p>The operator runs approximately 10 check cycles over 48 hours at the default frequency of 5 checks per day. Any increase above default requires prior operator/client agreement.</p></div></li>
+          <li><div><h3>Private report delivery</h3><p>The client receives a static HTML report/dashboard and sanitized CSV export through private S3 presigned URLs.</p></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="faq" aria-labelledby="faq-heading">
+      <div class="container">
+        <h2 id="faq-heading">FAQ</h2>
+        <ul class="faq-list">
+          <li><h3>How many endpoints are included?</h3><p>The standard audit covers up to 10 unique <code>METHOD + PATH</code> combinations. The same path with different methods counts as separate endpoints.</p></li>
+          <li><h3>Can production APIs be tested?</h3><p>Yes, only after written client waiver/agreement and internal production approval are complete. Missing either approval blocks production testing.</p></li>
+          <li><h3>What authentication is supported?</h3><p>Bearer-token authentication is supported first. Token values are handled as sensitive credentials and are excluded from reports and CSV exports.</p></li>
+          <li><h3>What data is retained?</h3><p>Sanitized metadata is retained for 90 days. Raw logs, raw responses, raw response bodies, raw headers, trace logs, and stack traces are not displayed or stored by default.</p></li>
+          <li><h3>What if latency thresholds are not provided?</h3><p>The report shows observed latency only. It does not label latency as pass or fail unless client-provided thresholds exist.</p></li>
+          <li><h3>Is resilience or burst testing included?</h3><p>No. Resilience/burst testing is optional, outside the standard workflow, and requires separate written approval before execution.</p></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="request-audit" class="request-section" aria-labelledby="request-audit-heading" tabindex="-1">
+      <div class="container">
+        <div class="request-panel">
+          <p class="eyebrow">Static placeholder</p>
+          <h2 id="request-audit-heading">Request a Reliability Audit</h2>
+          <p class="lead">Audit requests are coordinated manually by an operator outside this website for the MVP. This placeholder exists only as the destination for the same-page CTA.</p>
+          <p class="scope-warning"><strong>No submission happens here.</strong> This page has no form, email trigger, backend submission, lead capture, payment, login, scheduler, or chat widget.</p>
+          <p>Before testing, the operator confirms endpoint scope, authorization, production approval requirements, bearer-token handling, data-retention expectations, latency thresholds if available, and whether any optional resilience/burst work has separate written approval.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <p>Manual/operator-assisted 48-Hour API Reliability Audit MVP. Static informational page only; not a SaaS onboarding flow.</p>
+    </div>
+  </footer>
+</body>
+</html>

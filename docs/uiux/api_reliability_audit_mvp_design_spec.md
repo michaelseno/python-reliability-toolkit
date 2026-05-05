@@ -3,7 +3,7 @@
 ## 1. Feature Overview
 
 **Title:** 48-Hour API Reliability Audit MVP UI/UX Plan  
-**Status:** Planning artifact only; approved for study/planning, not implementation  
+**Status:** Implementation-ready design specification for authorized MVP implementation  
 **Source Product Spec:** `docs/product/api_reliability_audit_mvp_spec.md`  
 **Source Architecture Plan:** `docs/architecture/api_reliability_audit_mvp_architecture.md`  
 **Scope Type:** Manual/operator-assisted MVP, not SaaS  
@@ -11,10 +11,10 @@
 
 The 48-Hour API Reliability Audit MVP is a bounded, operator-assisted service for evaluating up to 10 unique `METHOD + PATH` API endpoints over 48 hours. The customer-facing experience consists of:
 
-1. a Phase 1 static product landing page; and
+1. a Phase 1 static product landing page at project-root `frontend/index.html`; and
 2. a private static HTML report/dashboard with a sanitized CSV export delivered through S3 presigned URLs.
 
-No heavy frontend application, SaaS onboarding flow, login, payment flow, customer account area, backend form handling, or self-service audit configuration is needed for the MVP.
+No heavy frontend application, SaaS onboarding flow, login, payment flow, customer account area, backend form handling, email submission flow, lead capture, or self-service audit configuration is needed for the MVP.
 
 ### Executive Summary
 
@@ -52,14 +52,15 @@ The report reviewer wants to quickly understand reliability outcomes, endpoint-l
 1. Visitor lands on the static product page.
 2. Visitor reads the hero, value proposition, included items, safety guarantees, pricing, process, and FAQ.
 3. Visitor selects the CTA with exact text: **Request a Reliability Audit**.
-4. CTA navigates to a placeholder destination until the final destination is confirmed.
-5. Operator coordinates intake outside the website.
-6. Client provides endpoint list, environment classification, bearer-token details if needed, expected latency thresholds if available, and written authorization.
-7. Client receives private S3 presigned URLs for HTML report/dashboard and sanitized CSV export after audit completion.
+4. CTA navigates to the same-page placeholder anchor `#request-audit`.
+5. Visitor arrives at a static placeholder section explaining that audit intake is coordinated manually outside the website.
+6. Operator coordinates intake outside the website.
+7. Client provides endpoint list, environment classification, bearer-token details if needed, expected latency thresholds if available, and written authorization.
+8. Client receives private S3 presigned URLs for HTML report/dashboard and sanitized CSV export after audit completion.
 
 ### Operator Journey
 
-1. Operator receives audit request through the placeholder CTA destination or manual channel.
+1. Operator receives audit request through a manual channel outside the website; the landing page does not capture, submit, email, or store audit requests.
 2. Operator collects client contact, endpoint inventory, auth approach, environment, thresholds, and requested options.
 3. Operator confirms no more than 10 unique `METHOD + PATH` endpoints.
 4. If production testing is requested, operator obtains written production waiver/agreement.
@@ -82,7 +83,7 @@ The report reviewer wants to quickly understand reliability outcomes, endpoint-l
 
 1. Offer clarity: “48-hour API Reliability Audit”.
 2. Outcome/value: reliability evidence without SaaS onboarding.
-3. Scope: up to 10 endpoints, 5 checks/day, approximately 10 cycles.
+3. Scope: up to 10 endpoints, default 5 checks/day, approximately 10 cycles; higher frequency requires operator/client agreement.
 4. Safety/privacy: authorization, no raw persistence by default, private delivery, sanitized CSV.
 5. Pricing: $750 standard; optional validation and add-on pricing where used.
 6. Process: request, intake, approval, 48-hour checks, report delivery.
@@ -102,7 +103,7 @@ The report reviewer wants to quickly understand reliability outcomes, endpoint-l
 
 ## 6. Layout Structure
 
-### Static Landing Page
+### Static Landing Page (`frontend/index.html`)
 
 - **Header:** simple brand/service name, same-page anchor navigation, primary CTA.
 - **Hero:** headline, concise supporting copy, primary CTA, safety note.
@@ -112,7 +113,7 @@ The report reviewer wants to quickly understand reliability outcomes, endpoint-l
 - **Pricing:** pricing cards or stacked rows for standard MVP price and optional validation/add-on/future monitoring references.
 - **How It Works:** numbered steps.
 - **FAQ:** accessible accordion or static question list. Static list is preferred for MVP simplicity.
-- **Final CTA:** repeated CTA with exact text.
+- **Final CTA / Placeholder Request Section:** a section with `id="request-audit"` and a programmatically identifiable heading. This section is the anchor target for all CTAs and must contain only static explanatory copy; it must not contain a form, email field, backend submission, `mailto:` trigger, login prompt, payment UI, or lead-capture widget.
 
 ### HTML Report / Dashboard
 
@@ -145,6 +146,7 @@ This is not a customer-facing product UI for MVP. It may be represented as manua
 - Header/navigation
 - Hero section
 - CTA link/button
+- `#request-audit` placeholder section
 - Feature/value cards
 - Safety guarantee checklist
 - Pricing card/rows
@@ -178,10 +180,11 @@ This is not a customer-facing product UI for MVP. It may be represented as manua
 ### Landing Page CTA
 
 - **Trigger:** click or keyboard activation on CTA.
-- **System response:** navigate to configured placeholder destination.
+- **System response:** navigate to same-page placeholder anchor `#request-audit`.
 - **UI feedback:** browser navigation occurs; no form submission or loading spinner is required.
-- **Success behavior:** visitor reaches placeholder destination.
-- **Failure behavior:** if placeholder URL is unavailable, browser displays normal link failure; no custom backend error state is required.
+- **Success behavior:** visitor reaches the static `#request-audit` section.
+- **Failure behavior:** if the `#request-audit` target is missing, treat as an implementation defect. Do not replace the missing anchor with form/email/backend behavior.
+- **Out-of-scope behavior:** CTA must not submit a form, open an email client, call a backend API, initiate payment, or start login/account creation.
 
 ### Landing Page Navigation
 
@@ -190,6 +193,15 @@ This is not a customer-facing product UI for MVP. It may be represented as manua
 - **UI feedback:** focus should move or remain understandable; target section should have a programmatically identifiable heading.
 - **Success behavior:** selected content is visible.
 - **Failure behavior:** broken anchors must be treated as implementation defects.
+
+### Request Audit Placeholder Section
+
+- **Trigger:** user lands on `#request-audit` by activating the CTA or directly loading the URL with the hash.
+- **System response:** browser scrolls to the placeholder section.
+- **UI feedback:** the section heading is visible and can receive focus via `tabindex="-1"` if focus is programmatically moved after hash navigation.
+- **Success behavior:** visitor receives static guidance that intake is manually coordinated outside the website.
+- **Failure behavior:** no dynamic failure state; missing anchor, hidden section, or dead CTA is an implementation defect.
+- **Out-of-scope behavior:** do not render input fields, submit buttons, newsletter signup, email-capture UI, `mailto:` link as the CTA destination, calendar scheduler, chat widget, or backend-connected request workflow for MVP.
 
 ### Report CSV Export
 
@@ -225,8 +237,8 @@ This is not a customer-facing product UI for MVP. It may be represented as manua
 - **Active:** pressed/activated state visible during click/keyboard activation.
 - **Disabled:** not applicable for static link; do not render disabled CTA unless destination is intentionally unavailable, in which case use explanatory text instead of a fake button.
 - **Loading:** not applicable; no backend submission.
-- **Success:** navigation to placeholder destination.
-- **Error:** browser/link failure only; no app-level error.
+- **Success:** navigation to `#request-audit` placeholder section.
+- **Error:** missing target section is an implementation defect; no app-level error or fallback form/email flow.
 - **Empty:** not applicable.
 
 ### Navigation Links
@@ -236,6 +248,18 @@ This is not a customer-facing product UI for MVP. It may be represented as manua
 - **Focus:** visible focus ring/outline.
 - **Active:** current/activated link styling if implemented.
 - **Disabled/Loading/Success/Error/Empty:** not applicable for static anchors, except broken anchors are defects.
+
+### `#request-audit` Placeholder Section
+
+- **Default:** visible static section with `id="request-audit"`, a clear heading, and text explaining that audit intake is manual/operator-assisted outside the website.
+- **Hover:** not applicable; section is not interactive.
+- **Focus:** if focus is moved to the section after CTA activation, the section heading or container must have a visible focus style and `tabindex="-1"` may be used for programmatic focus.
+- **Active:** not applicable.
+- **Disabled:** not applicable; section must remain available because it is the CTA target.
+- **Loading:** not applicable; no async behavior.
+- **Success:** CTA/hash navigation lands on this section without broken-anchor behavior.
+- **Error:** missing or duplicate `id="request-audit"` is an implementation defect.
+- **Empty:** section must not be empty; include static explanatory copy and no form/email capture UI.
 
 ### FAQ Items
 
@@ -349,6 +373,7 @@ Final brand tokens are not defined in upstream artifacts. Use existing repositor
 - Use semantic HTML landmarks: `header`, `main`, `section`, `footer`, and `nav` where applicable.
 - Use one descriptive H1 per page/report and hierarchical headings thereafter.
 - CTA must be a real link (`a`) when it navigates, not a button unless it performs an in-page action.
+- All landing page CTAs must use `href="#request-audit"` and the page must include exactly one matching `id="request-audit"` target section.
 - All links and interactive elements must be keyboard accessible using Tab, Shift+Tab, Enter, and Space where appropriate.
 - Provide visible focus indicators for all interactive elements.
 - Do not communicate status by color alone; badges must include text labels.
@@ -357,6 +382,7 @@ Final brand tokens are not defined in upstream artifacts. Use existing repositor
 - Error, empty, and unavailable states must be expressed in plain language.
 - Presigned URL expiry messaging should be understandable without relying on visual-only cues.
 - FAQ accordions, if used later, must expose `aria-expanded` and maintain keyboard support. Static FAQ content is preferred for MVP simplicity.
+- The `#request-audit` target must have a descriptive heading and must not rely on visual position alone to communicate that it is the CTA destination.
 
 ## 13. Edge Cases
 
@@ -371,17 +397,21 @@ Final brand tokens are not defined in upstream artifacts. Use existing repositor
 - Missed check cycle: report should show expected versus completed cycles and indicate incomplete measurement if material.
 - Presigned URL expired: delivery copy should instruct client to request a regenerated private link.
 - CSV unavailable: report must not show a dead download link.
+- Landing page `#request-audit` section omitted: CTA is broken; implementation must add the static anchor target rather than changing CTA behavior.
+- Visitor expects to submit contact details on the landing page: page copy must clarify that intake is manual/operator-assisted and that form submission, email submission, backend lead capture, login, and payment are not part of MVP.
 - Raw-data storage requested: must be treated as an exception requiring explicit written demand and approval before collection.
 - Resilience/burst requested: must be separated from the standard workflow and require separate written approval.
 - Empty audit results: report must show no observations recorded and avoid misleading summary percentages.
 
 ## 14. Developer Handoff Notes
 
-- This is a planning artifact only. Do not implement frontend, backend, PR, release, or deployment work from this document without separate authorization.
-- No heavy frontend/SaaS is needed now.
-- The landing page must be static and informational only: no backend, no login, no payment, no form submission.
+- This design specification is implementation-ready for the authorized MVP, but this task does not implement code.
+- No heavy frontend/SaaS is needed for MVP.
+- The landing page must be static and informational only: no backend, no login, no payment, no form submission, no email submission flow, and no lead capture.
 - CTA text must be exactly: **Request a Reliability Audit**.
-- CTA destination remains a placeholder pending confirmation.
+- CTA destination must be exactly `#request-audit`.
+- The landing page must include exactly one static placeholder section with `id="request-audit"` so the CTA is not broken.
+- The `#request-audit` placeholder section must not contain form fields, submit controls, email capture, `mailto:` CTA behavior, backend-connected request handling, scheduler widgets, login prompts, or payment prompts.
 - Report/dashboard should be generated as a static HTML artifact from sanitized metadata only.
 - CSV export must contain sanitized metadata only and exclude bearer tokens, raw bodies, raw headers, trace logs, unredacted payloads, and secret references.
 - Reports and CSVs are delivered through private S3 presigned URLs only.
@@ -451,8 +481,8 @@ Required messaging themes:
 - Standard audit covers up to 10 unique `METHOD + PATH` endpoints.
 - Bearer tokens are handled as sensitive credentials and excluded from reports/CSV.
 - Reports and CSV exports contain sanitized metadata only.
-- Raw response bodies, headers, and trace logs are transient and not stored by default.
-- Raw-data storage requires explicit written demand and approval.
+- Raw logs, raw responses, raw response bodies, raw headers, trace logs, and stack traces are not displayed or persisted by default.
+- Raw diagnostic artifact collection, display, inclusion, or persistence requires explicit client request plus written approval/reference.
 - Reports are delivered through private S3 presigned URLs, not public permanent links.
 - Sanitized metadata is retained for 90 days, then exported to CSV and emailed to the client.
 
@@ -467,7 +497,7 @@ Required sections in order:
 5. Pricing.
 6. How it works.
 7. FAQ.
-8. CTA.
+8. CTA / static `#request-audit` placeholder section.
 
 ## 22. Landing Page Copy Direction and CTA Behavior
 
@@ -475,7 +505,7 @@ Required sections in order:
 
 - Hero headline should emphasize a 48-hour audit, not ongoing monitoring.
 - Value proposition should target small teams needing quick evidence before launch, demo, fundraising, rollout, or handoff.
-- “What’s included” should name up to 10 endpoints, 5 checks/day, approximately 10 cycles, HTML report/dashboard, sanitized CSV, and private delivery.
+- “What’s included” should name up to 10 endpoints, default 5 checks/day, approximately 10 cycles, HTML report/dashboard, sanitized CSV, and private delivery; any higher frequency must be framed as requiring operator/client agreement.
 - Privacy copy should be plain and prominent.
 - Pricing should include:
   - Standard public MVP price: **$750**.
@@ -487,8 +517,13 @@ Required sections in order:
 ### CTA Behavior
 
 - CTA text must be exactly **Request a Reliability Audit**.
-- CTA is a static link to a placeholder destination pending confirmation.
+- CTA is a static same-page link with destination exactly `#request-audit`.
+- Landing page must include a section with `id="request-audit"` as the CTA anchor target.
+- The `#request-audit` section must contain static copy only, such as a brief note that audit requests are coordinated manually outside the website for MVP.
 - CTA must not submit a form.
+- CTA must not open an email client or trigger email submission.
+- CTA must not capture or store lead information.
+- CTA must not call a backend API.
 - CTA must not initiate payment.
 - CTA must not create an account or login session.
 
@@ -496,7 +531,9 @@ Required sections in order:
 
 - Landing page includes hero headline, problem/value proposition, what’s included, privacy/safety guarantees, pricing, how it works, FAQ, and CTA.
 - Landing page CTA text is exactly **Request a Reliability Audit**.
-- Landing page has no backend, payment, login, or form submission behavior.
+- Landing page CTA destination is exactly `#request-audit`.
+- Landing page includes exactly one visible static placeholder section with `id="request-audit"`.
+- Landing page has no backend, payment, login, form submission, email submission, or lead-capture behavior.
 - Landing page clearly states the MVP is manual/operator-assisted and not SaaS.
 - Intake UX requires no more than 10 unique `METHOD + PATH` endpoints for the standard audit.
 - Production testing UX requires written waiver/agreement and internal approval checklist before execution.
@@ -521,10 +558,15 @@ Required sections in order:
 
 ## 25. Open Questions
 
-- What exact placeholder destination should the landing page CTA use?
 - What format and storage location should be used for written waivers/agreements and internal approval checklists?
-- Who owns the 90-day CSV email: operator, automated job, or another process?
 - What expiration duration should be used for S3 presigned report URLs?
-- What email address or delivery mechanism should be used for post-retention CSV delivery?
+- What exact SMTP environment variable names, sender address, and remediation recipient should be used for automated post-retention CSV email delivery?
 - After the 90-day CSV export/email, should source sanitized metadata be deleted, archived, or retained elsewhere?
-- What static site path/framework should host the Phase 1 landing page in this repository?
+- Static site path is confirmed for MVP as project-root `frontend/index.html`; no frontend framework is required.
+
+## 26. Deferred / Out-of-Scope UI Behavior
+
+- Landing-page contact forms are deferred and must not be implemented in the MVP.
+- Landing-page email submission flows, including `mailto:` CTA behavior, are deferred and must not be implemented in the MVP.
+- Backend lead capture, CRM integration, newsletter signup, calendar scheduling, login, payment, and self-service audit configuration are deferred and must not be implemented in the MVP.
+- Future replacement of the `#request-audit` placeholder with a form or email workflow requires a separate product decision and updated UX specification.
