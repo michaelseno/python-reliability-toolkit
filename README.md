@@ -123,9 +123,12 @@ ReliabilityKit ships with built-in command help via Typer:
 
 ```bash
 reliabilitykit --help
+rk --help
 reliabilitykit run --help
 reliabilitykit dashboard --help
 ```
+
+`rk` is the short executable alias for local terminal workflows.
 
 Common workflows:
 
@@ -155,6 +158,10 @@ reliabilitykit dashboard --open
 
 # repeat full run N times regardless of pass/fail
 reliabilitykit run --repeat 5 -- tests/e2e -m smoke
+
+# local API Reliability Audit check cycle and report
+rk audit run --config examples/api_reliability_audit/audit.local.yml
+rk audit generate-report --id local-api-reliability-audit
 ```
 
 Note: dashboard lazy-loads `run.json` from the run table. If you open dashboard from

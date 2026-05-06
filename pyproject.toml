@@ -21,6 +21,7 @@ dependencies = [
 
 [project.scripts]
 reliabilitykit = "reliabilitykit.cli.main:app"
+rk = "reliabilitykit.cli.main:app"
 
 [tool.setuptools]
 package-dir = {"" = "."}

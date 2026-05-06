@@ -8,7 +8,7 @@ Add audit domain models and fail-closed validation, sanitized check execution me
 
 HITL correction scope updates schedule validation so `checks_per_day` remains defaulted to 5 but is configurable from 1 through 24, requires an operator/client agreement reference when increased above 5, and reconciles `expected_check_cycles` with the configured frequency. It also strengthens the raw diagnostic artifact gate so raw logs, raw responses, and stack traces are excluded from display and persistence by default and require explicit client request plus written approval/reference for any collection, inclusion, or persistence exception.
 
-HITL usability correction scope adds a schema-valid, copy-editable local audit YAML and explicit validate → check-cycle → report documentation using produced result JSON paths. No convenience/sample-report command will be added.
+HITL usability correction scope adds a schema-valid, copy-editable local audit YAML and explicit validate → check-cycle → report documentation using produced result JSON paths. The current HITL correction streamlines the local workflow to `rk audit run --config ...` followed by `rk audit generate-report --id ...`. No convenience/sample-report command will be added.
 
 ## 3. Source Inputs
 - `docs/architecture/api_reliability_audit_mvp_architecture.md`
@@ -22,12 +22,11 @@ HITL usability correction scope adds a schema-valid, copy-editable local audit Y
 ## 4. API Contracts Affected
 No public or customer-facing backend API contracts are in MVP scope.
 
-Operator-facing CLI commands will be added under `reliabilitykit audit` for validating configs, running one check cycle, generating reports, delivering via private S3 presigned URLs, creating retention records, and processing expired retention records.
+Operator-facing CLI commands will be available under `reliabilitykit audit` and the short `rk audit` console entry point for validating configs, running one check cycle, generating reports, delivering via private S3 presigned URLs, creating retention records, and processing expired retention records.
 
-The local documented audit workflow uses existing commands only:
-- `reliabilitykit audit validate --config <audit.yml>`
-- `reliabilitykit audit check-cycle --config <audit.yml> --cycle-id <cycle_id> --storage-root .reliabilitykit`
-- `reliabilitykit audit report --config <audit.yml> --result-json .reliabilitykit/audits/<audit_id>/results/<cycle_id>.json --output-dir .reliabilitykit/audits/reports`
+The local documented audit workflow uses streamlined commands:
+- `rk audit run --config <audit.yml>` — `--config` is required, validates config, runs one check cycle, writes `.reliabilitykit/audits/<audit_id>/results/<cycle_id>.json`, snapshots audit metadata, and prints `audit_id` plus result path.
+- `rk audit generate-report --id <audit_id>` — discovers the latest result JSON under `.reliabilitykit/audits/<audit_id>/results/`, uses the persisted snapshot when available, and writes `.reliabilitykit/audits/reports/<audit_id>/audit_report.html` and `audit_sanitized.csv`.
 
 ## 5. Data Models / Storage Affected
 - New audit models: `AuditConfig`, `AuditEndpoint`, `BearerAuthConfig`, `PrivacyPolicy`, `RetentionPolicy`, `EndpointAuditResult`, `AuditResult`, and `RetentionRecord`.
@@ -38,6 +37,7 @@ The local documented audit workflow uses existing commands only:
 - CSV contract exactly: `audit_id`, `check_cycle_id`, `endpoint_id`, `method`, `path`, `timestamp`, `status_code`, `available`, `latency_ms`, `expected_latency_ms`, `latency_status`, `error_category`, `error_summary`.
 - Private S3 object upload/presign helper; no public ACL or permanent URL behavior.
 - Local check-cycle output path remains `.reliabilitykit/audits/<audit_id>/results/<cycle_id>.json`.
+- Local audit config snapshots are written to `.reliabilitykit/audits/<audit_id>/audit_config_snapshot.json` to support later report generation without re-passing the config path.
 - Local report output paths remain `.reliabilitykit/audits/reports/<audit_id>/audit_report.html` and `.reliabilitykit/audits/reports/<audit_id>/audit_sanitized.csv`.
 
 ## 6. Files Expected to Change
@@ -48,6 +48,7 @@ The local documented audit workflow uses existing commands only:
 - `reliabilitykit/storage/retention.py`
 - `reliabilitykit/cli/commands/audit.py`
 - `reliabilitykit/cli/main.py`
+- `pyproject.toml`
 - Unit tests under `tests/unit/`
 - Backend implementation documentation under `docs/backend/`
 - `examples/api_reliability_audit/audit.local.yml`
@@ -72,8 +73,11 @@ No new required dependency will be added. S3 support will use optional `boto3` w
 - For the 48-hour standard audit, expected check cycles are derived exactly as `(48 * checks_per_day) / 24`, yielding `2 * checks_per_day`.
 - Existing raw body/header/trace exception references are reused as the explicit request and written approval gate for raw logs, raw responses, and stack traces to avoid adding a separate approval workflow.
 - The copy-editable local example uses `https://httpbin.org` as a real public HTTP dry-run target so users can try the workflow locally, while documentation requires replacing endpoints with approved client staging or production targets for actual audits.
+- `audit run` generates a UTC timestamp-based cycle id because the confirmed requirement does not specify a caller-provided cycle id for the streamlined command.
+- `audit generate-report` uses the newest result file by filesystem modification time, with filename as a tie-breaker.
+- If an audit metadata snapshot is unavailable, `audit generate-report` falls back to minimal result-derived metadata so historical sanitized results can still render; new `audit run` and `check-cycle` executions write the snapshot.
 
 ## 10. Validation Plan
-- `./.venv/bin/python -m pytest tests/unit/test_api_reliability_audit_mvp.py tests/unit/test_cli_commands.py tests/unit/test_storage_local.py`
+- `./.venv/bin/python -m pytest tests/unit/test_api_reliability_audit_mvp.py tests/unit/test_cli_commands.py`
 - Broader unit suite if feasible: `python -m pytest tests/unit`
-- `./.venv/bin/reliabilitykit audit validate --config examples/api_reliability_audit/audit.local.yml`
+- `./.venv/bin/rk audit run --config examples/api_reliability_audit/audit.local.yml`

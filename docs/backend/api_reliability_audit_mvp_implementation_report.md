@@ -5,7 +5,7 @@ Implemented the backend/core/reporting/storage/retention portions of the 48-Hour
 
 HITL correction implemented configurable audit frequency and stronger raw diagnostic artifact gating. The default remains 48 hours / 5 checks per day / 10 expected cycles, while `checks_per_day` now supports 1-24 with an operator/client agreement reference required above 5 and `expected_check_cycles` validated against the configured frequency. Raw logs, raw responses, and stack traces now have explicit fail-closed collection/inclusion/persistence flags and remain excluded from reports, CSV exports, retention email payloads, and persisted sanitized artifacts by default.
 
-HITL usability correction added a concrete copy-editable audit YAML and local operator documentation for the required validate → check-cycle → report workflow. The workflow uses real configurable endpoints and the existing CLI commands only; no convenience/sample-report command was added.
+HITL usability correction added a concrete copy-editable audit YAML and local operator documentation for the required validate → check-cycle → report workflow. The latest HITL correction streamlines that workflow with the short `rk` executable, `rk audit run --config ...`, and `rk audit generate-report --id ...`; no convenience/sample-report command was added.
 
 ## 2. Files Modified
 - `docs/backend/api_reliability_audit_mvp_implementation_plan.md` — backend implementation plan and assumptions.
@@ -17,8 +17,11 @@ HITL usability correction added a concrete copy-editable audit YAML and local op
 - `reliabilitykit/core/audit.py` — audit domain models, validation gates, sanitized result models, one-cycle execution logic, retention record creation.
 - `reliabilitykit/reporting/audit.py` — sanitized CSV contract and static HTML audit report generation.
 - `reliabilitykit/storage/retention.py` — SMTP env parsing, post-retention CSV export, email attachment/link delivery, retryable sanitized failure state, and raw diagnostic exclusion email text.
-- `reliabilitykit/cli/commands/audit.py` — operator CLI commands for validation, check cycle execution, report generation, S3 delivery, retention record creation, and retention processing.
+- `reliabilitykit/storage/local.py` — local audit result persistence, config snapshot persistence, and latest-result discovery helpers.
+- `reliabilitykit/cli/commands/audit.py` — operator CLI commands for validation, streamlined audit run, latest-result report generation, lower-level check/report compatibility, S3 delivery, retention record creation, and retention processing.
 - `reliabilitykit/cli/main.py` — registered the `reliabilitykit audit` command group.
+- `pyproject.toml` — added `rk` console script alias while preserving `reliabilitykit`.
+- `tests/unit/test_cli_commands.py` — CLI coverage for required `--config`, audit run persistence/snapshot behavior, latest result discovery/report paths, and absence of `sample-report`.
 - `tests/unit/test_api_reliability_audit_mvp.py` — AC-focused backend unit coverage for endpoint caps, approval gates, sanitized artifacts, S3 delivery, retention SMTP, and latency/schedule behavior.
 - `examples/api_reliability_audit/audit.local.yml` — schema-valid local audit config targeting real public configurable endpoints for dry-run use.
 - `examples/api_reliability_audit/README.md` — explicit local workflow, edit guidance, bearer-token env var/reference guidance, approval references, check frequency bounds, raw diagnostic gates, and output paths.
@@ -27,7 +30,9 @@ HITL usability correction added a concrete copy-editable audit YAML and local op
 ## 3. API Contract Implementation
 No public or customer-facing backend API was added. Audit operations are operator-facing CLI/local workflow only.
 
-New operator commands:
+Operator commands include:
+- `rk audit run --config /tmp/audit.local.yml`
+- `rk audit generate-report --id local-api-reliability-audit`
 - `reliabilitykit audit validate --config /tmp/audit.local.yml`
 - `reliabilitykit audit check-cycle --config /tmp/audit.local.yml --cycle-id local-001 --storage-root .reliabilitykit`
 - `reliabilitykit audit report --config /tmp/audit.local.yml --result-json .reliabilitykit/audits/local-api-reliability-audit/results/local-001.json --output-dir .reliabilitykit/audits/reports`
@@ -40,6 +45,7 @@ Local persistence writes sanitized metadata only under `.reliabilitykit/audits/`
 
 The documented local output paths match existing implementation behavior:
 - Check-cycle result JSON: `.reliabilitykit/audits/<audit_id>/results/<cycle_id>.json`
+- Audit config snapshot: `.reliabilitykit/audits/<audit_id>/audit_config_snapshot.json`
 - HTML report: `.reliabilitykit/audits/reports/<audit_id>/audit_report.html`
 - Sanitized CSV: `.reliabilitykit/audits/reports/<audit_id>/audit_sanitized.csv`
 
@@ -56,7 +62,7 @@ The documented local output paths match existing implementation behavior:
 - AC-10: Resilience/burst request is blocked without separate written approval and is not part of standard check-cycle logic.
 - AC-11: Latency pass/fail labels are produced only when endpoint thresholds exist; otherwise `observed_only` is used.
 - AC-12: Standard schedule defaults are 48 hours, 5 checks/day, and 10 expected cycles; frequency is configurable from 1 through 24, above-default values require `check_frequency_agreement_reference`, and expected cycles must reconcile to the configured 48-hour frequency.
-- Local usability: `examples/api_reliability_audit/audit.local.yml` validates against `AuditConfig`, uses `https://httpbin.org` as real public dry-run endpoints, and documents required edits for approved client endpoints, bearer-token env var/reference handling, production/staging approval references, frequency agreement references, and raw diagnostic gates.
+- Local usability: `examples/api_reliability_audit/audit.local.yml` validates against `AuditConfig`, uses `https://httpbin.org` as real public dry-run endpoints, and documents required edits for approved client endpoints, bearer-token env var/reference handling, production/staging approval references, frequency agreement references, and raw diagnostic gates. `audit run` validates config and snapshots metadata before writing a one-cycle result; `generate-report` finds the latest persisted result by audit id and writes the confirmed report paths.
 
 ## 6. Security / Authorization Implemented
 Approval gates fail closed. Runtime bearer tokens are not serialized. Frequency increases above the default fail closed without an operator/client agreement reference. SMTP secrets are read from environment variables and not included in retention records, generated CSVs, reports, S3 keys, or sanitized failure categories. Artifact keys are sanitized and reject public URL-like keys. Raw logs, raw responses, and stack traces remain excluded from default display and persistence paths.
@@ -64,10 +70,10 @@ Approval gates fail closed. Runtime bearer tokens are not serialized. Frequency 
 The example config includes only `auth.token_secret_reference: RELIABILITYKIT_AUDIT_BEARER_TOKEN`; no bearer token value or private endpoint credential is committed. Documentation instructs users to set bearer tokens through environment variables and to keep raw diagnostic gates disabled unless the explicit written-demand and approval references exist.
 
 ## 7. Error Handling Implemented
-Validation errors block invalid configs, out-of-bound check frequencies, missing above-default frequency agreement references, mismatched expected cycles, and raw diagnostic artifact exceptions without both request and approval references. Endpoint HTTP/network failures become sanitized result rows with category/summary. SMTP config and delivery failures become retryable retention states with `delivery_status=retry_pending`, incremented `attempt_count`, `last_attempt_at`, and sanitized `last_error_category`. Already-sent retention records are idempotent unless explicitly overridden.
+Validation errors block omitted required `audit run --config`, invalid configs, out-of-bound check frequencies, missing above-default frequency agreement references, mismatched expected cycles, and raw diagnostic artifact exceptions without both request and approval references. `generate-report` fails clearly when no result JSON exists for the requested audit id. Endpoint HTTP/network failures become sanitized result rows with category/summary. SMTP config and delivery failures become retryable retention states with `delivery_status=retry_pending`, incremented `attempt_count`, `last_attempt_at`, and sanitized `last_error_category`. Already-sent retention records are idempotent unless explicitly overridden.
 
 ## 8. Observability / Logging
-The implementation surfaces operator-readable CLI status for validation, artifact generation, delivery URLs, and retention processing. Failure state is recorded in retention records without secrets. No raw body/header/trace logging was added.
+The implementation surfaces operator-readable CLI status for validation, generated audit id/result paths, report output paths, delivery URLs, and retention processing. Failure state is recorded in retention records without secrets. No raw body/header/trace logging was added.
 
 ## 9. Assumptions Made
 - Presigned URL expiration defaults to 7 days (`604800` seconds) because the exact duration remains open; commands/helpers allow override.
@@ -78,6 +84,9 @@ The implementation surfaces operator-readable CLI status for validation, artifac
 - `check_frequency_agreement_reference` is the backend field name used for operator/client agreement evidence when `checks_per_day > 5`; it is a reference only and is not rendered in customer-facing artifacts.
 - Expected cycles for the standard 48-hour audit are derived as `(schedule_duration_hours * checks_per_day) / 24` and must resolve to whole cycles.
 - The checked-in local audit example uses public `https://httpbin.org` endpoints as real dry-run targets. Operators must replace them with approved client endpoints for an actual audit.
+- `audit run` uses a UTC timestamp-based cycle id because the streamlined command does not accept a manual cycle id in the confirmed contract.
+- `generate-report` treats the newest result JSON as the file with the latest modification time, using filename as a deterministic tie-breaker.
+- `generate-report` uses persisted audit metadata snapshots when available and falls back to minimal result-derived metadata for older result files without snapshots.
 
 ## 10. Validation Performed
 - `python -m pytest ...` — failed locally because `python` executable is not available in this shell.
@@ -90,6 +99,9 @@ The implementation surfaces operator-readable CLI status for validation, artifac
 - `./.venv/bin/python -m reliabilitykit.cli.main audit validate --config examples/api_reliability_audit/audit.local.yml` — passed: `Audit config valid: local-api-reliability-audit endpoints=2 schedule=48h/5 checks per day/10 cycles`.
 - `./.venv/bin/python -m pytest tests/unit/test_api_reliability_audit_mvp.py tests/unit/test_cli_commands.py tests/unit/test_storage_local.py` — passed after usability correction: 27 passed in 0.46s.
 - `./.venv/bin/python -m pytest tests/unit` — passed after usability correction: 58 passed in 0.38s.
+- `./.venv/bin/python -m pytest tests/unit/test_cli_commands.py tests/unit/test_api_reliability_audit_mvp.py` — passed after streamlined CLI correction: 30 passed in 0.38s.
+- `./.venv/bin/python -m pytest tests/unit` — passed after streamlined CLI correction: 62 passed in 0.42s.
+- `uv pip install -e . && ./.venv/bin/rk --help && ./.venv/bin/rk audit --help` — passed; `rk` executable is installed and audit help lists `run`/`generate-report` with no `sample-report` command.
 
 ## 11. Known Limitations / Follow-Ups
 - AC-13 static landing page implementation/testing is frontend scope and was not implemented here.
@@ -97,6 +109,7 @@ The implementation surfaces operator-readable CLI status for validation, artifac
 - Written waiver/checklist storage remains reference-only per architecture; no automated contract verification was added.
 - Post-retention deletion/archive policy remains unresolved by design and was not implemented.
 - The default example endpoints are public dry-run endpoints, not a substitute for operator-approved client staging/production endpoints.
+- The exact latest-result selection rule was not specified by product; implementation uses filesystem modification time.
 
 ## 12. Commit Status
-Initial MVP committed as `856b2fd` (`feat(backend): implement api reliability audit mvp`). HITL corrections committed as `af20224` (`fix(backend): apply audit mvp hitl corrections`). Usability correction commit pending at report update time.
+Initial MVP committed as `856b2fd` (`feat(backend): implement api reliability audit mvp`). HITL corrections committed as `af20224` (`fix(backend): apply audit mvp hitl corrections`). Previous usability correction committed before this HITL loop. Streamlined CLI correction commit pending at report update time.

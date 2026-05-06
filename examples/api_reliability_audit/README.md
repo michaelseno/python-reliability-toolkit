@@ -26,35 +26,39 @@ export RELIABILITYKIT_AUDIT_BEARER_TOKEN="replace-with-runtime-token"
 
 For the default public `httpbin.org` dry run, you may leave the variable unset.
 
-## 2. Validate config
+## 2. Run one local audit check cycle
 
 ```bash
-reliabilitykit audit validate --config /tmp/audit.local.yml
+rk audit run --config examples/api_reliability_audit/audit.local.yml
 ```
 
-## 3. Run one local check cycle
+If you copied the config to `/tmp/audit.local.yml`, use that edited path instead. `--config` is required; the CLI does not assume a default audit config. This command validates the config, runs exactly one check cycle, snapshots sanitized audit metadata needed for later report generation, and prints the `audit_id` plus result JSON path.
 
-```bash
-reliabilitykit audit check-cycle --config /tmp/audit.local.yml --cycle-id local-001 --storage-root .reliabilitykit
-```
-
-The produced sanitized result JSON path is:
-
-```text
-.reliabilitykit/audits/local-api-reliability-audit/results/local-001.json
-```
-
-In general, check-cycle output is written to:
+The produced sanitized result JSON path is written under:
 
 ```text
 .reliabilitykit/audits/<audit_id>/results/<cycle_id>.json
 ```
 
-## 4. Generate the HTML report from the produced result JSON
+For the checked-in example audit id, the path will look like:
+
+```text
+.reliabilitykit/audits/local-api-reliability-audit/results/<cycle_id>.json
+```
+
+## 3. Generate the HTML report from the latest result
 
 ```bash
-reliabilitykit audit report --config /tmp/audit.local.yml --result-json .reliabilitykit/audits/local-api-reliability-audit/results/local-001.json --output-dir .reliabilitykit/audits/reports
+rk audit generate-report --id local-api-reliability-audit
 ```
+
+The command finds the latest result JSON under:
+
+```text
+.reliabilitykit/audits/<audit_id>/results/<cycle_id>.json
+```
+
+It uses the persisted audit metadata snapshot when available and writes report artifacts under `.reliabilitykit/audits/reports/<audit_id>/`.
 
 The generated report artifacts are:
 
@@ -76,4 +80,4 @@ Open the report on macOS:
 open .reliabilitykit/audits/reports/local-api-reliability-audit/audit_report.html
 ```
 
-No convenience/sample-report command is required or provided; the intended workflow is validate config, run a check cycle, then generate the report from the produced result JSON.
+No convenience/sample-report command is required or provided; the intended local workflow is `rk audit run --config ...`, then `rk audit generate-report --id ...`.

@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from reliabilitykit.core.models import RunRecord
-from reliabilitykit.core.audit import AuditResult, RetentionRecord
+from reliabilitykit.core.audit import AuditConfig, AuditResult, RetentionRecord
 from reliabilitykit.storage.base import StorageBackend
 
 
@@ -74,8 +74,19 @@ class LocalStorageBackend(StorageBackend):
         safe_audit_id = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "-" for ch in audit_id)[:80]
         audit_dir = self.audits_root / safe_audit_id
         (audit_dir / "results").mkdir(parents=True, exist_ok=True)
-        (audit_dir / "reports").mkdir(parents=True, exist_ok=True)
         return audit_dir
+
+    def write_audit_config_snapshot(self, config: AuditConfig) -> Path:
+        audit_dir = self.prepare_audit_dir(config.audit_id)
+        output = audit_dir / "audit_config_snapshot.json"
+        output.write_text(json.dumps(config.model_dump(mode="json"), indent=2), encoding="utf-8")
+        return output
+
+    def read_audit_config_snapshot(self, audit_id: str) -> AuditConfig | None:
+        path = self.prepare_audit_dir(audit_id) / "audit_config_snapshot.json"
+        if not path.exists():
+            return None
+        return AuditConfig.model_validate(json.loads(path.read_text(encoding="utf-8")))
 
     def write_audit_result(self, result: AuditResult) -> Path:
         audit_dir = self.prepare_audit_dir(result.audit_id)
@@ -85,6 +96,13 @@ class LocalStorageBackend(StorageBackend):
 
     def read_audit_result(self, path: str | Path) -> AuditResult:
         return AuditResult.model_validate(json.loads(Path(path).read_text(encoding="utf-8")))
+
+    def latest_audit_result_path(self, audit_id: str) -> Path | None:
+        results_dir = self.prepare_audit_dir(audit_id) / "results"
+        candidates = [path for path in results_dir.glob("*.json") if path.is_file()]
+        if not candidates:
+            return None
+        return max(candidates, key=lambda path: (path.stat().st_mtime_ns, path.name))
 
     def write_retention_record(self, record: RetentionRecord) -> Path:
         self.retention_root.mkdir(parents=True, exist_ok=True)
