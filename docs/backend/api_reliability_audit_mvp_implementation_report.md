@@ -112,4 +112,4 @@ The implementation surfaces operator-readable CLI status for validation, generat
 - The exact latest-result selection rule was not specified by product; implementation uses filesystem modification time.
 
 ## 12. Commit Status
-Initial MVP committed as `856b2fd` (`feat(backend): implement api reliability audit mvp`). HITL corrections committed as `af20224` (`fix(backend): apply audit mvp hitl corrections`). Previous usability correction committed before this HITL loop. Streamlined CLI correction commit pending at report update time.
+Initial MVP committed as `856b2fd` (`feat(backend): implement api reliability audit mvp`). HITL corrections committed as `af20224` (`fix(backend): apply audit mvp hitl corrections`). Previous usability correction committed before this HITL loop. Streamlined CLI correction committed as `68860be` (`fix(backend): streamline audit cli workflow`).
