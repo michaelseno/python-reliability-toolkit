@@ -136,4 +136,4 @@ The implementation surfaces operator-readable CLI status for validation, generat
 - The installed wrappers include a narrow editable-install fallback for environments where Python skips editable `.pth` processing. Standard installs still use normal package import behavior.
 
 ## 12. Commit Status
-Initial MVP committed as `856b2fd` (`feat(backend): implement api reliability audit mvp`). HITL corrections committed as `af20224` (`fix(backend): apply audit mvp hitl corrections`). Previous usability correction committed before this HITL loop. Streamlined CLI correction committed as `68860be` (`fix(backend): streamline audit cli workflow`). Current packaging correction commit pending.
+Initial MVP committed as `856b2fd` (`feat(backend): implement api reliability audit mvp`). HITL corrections committed as `af20224` (`fix(backend): apply audit mvp hitl corrections`). Previous usability correction committed before this HITL loop. Streamlined CLI correction committed as `68860be` (`fix(backend): streamline audit cli workflow`). Packaging correction committed as `fa02278` (`fix(backend): repair audit cli editable install`).
