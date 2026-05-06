@@ -5,6 +5,8 @@ Implemented the backend/core/reporting/storage/retention portions of the 48-Hour
 
 HITL correction implemented configurable audit frequency and stronger raw diagnostic artifact gating. The default remains 48 hours / 5 checks per day / 10 expected cycles, while `checks_per_day` now supports 1-24 with an operator/client agreement reference required above 5 and `expected_check_cycles` validated against the configured frequency. Raw logs, raw responses, and stack traces now have explicit fail-closed collection/inclusion/persistence flags and remain excluded from reports, CSV exports, retention email payloads, and persisted sanitized artifacts by default.
 
+HITL usability correction added a concrete copy-editable audit YAML and local operator documentation for the required validate → check-cycle → report workflow. The workflow uses real configurable endpoints and the existing CLI commands only; no convenience/sample-report command was added.
+
 ## 2. Files Modified
 - `docs/backend/api_reliability_audit_mvp_implementation_plan.md` — backend implementation plan and assumptions.
 - `docs/backend/api_reliability_audit_mvp_implementation_report.md` — implementation report and validation evidence.
@@ -18,20 +20,28 @@ HITL correction implemented configurable audit frequency and stronger raw diagno
 - `reliabilitykit/cli/commands/audit.py` — operator CLI commands for validation, check cycle execution, report generation, S3 delivery, retention record creation, and retention processing.
 - `reliabilitykit/cli/main.py` — registered the `reliabilitykit audit` command group.
 - `tests/unit/test_api_reliability_audit_mvp.py` — AC-focused backend unit coverage for endpoint caps, approval gates, sanitized artifacts, S3 delivery, retention SMTP, and latency/schedule behavior.
+- `examples/api_reliability_audit/audit.local.yml` — schema-valid local audit config targeting real public configurable endpoints for dry-run use.
+- `examples/api_reliability_audit/README.md` — explicit local workflow, edit guidance, bearer-token env var/reference guidance, approval references, check frequency bounds, raw diagnostic gates, and output paths.
+- `README.md` — documentation index link to the API Reliability Audit local workflow.
 
 ## 3. API Contract Implementation
 No public or customer-facing backend API was added. Audit operations are operator-facing CLI/local workflow only.
 
 New operator commands:
-- `reliabilitykit audit validate --config <audit.yml>`
-- `reliabilitykit audit check-cycle --config <audit.yml> --cycle-id <id>`
-- `reliabilitykit audit report --config <audit.yml> --result-json <result.json>`
+- `reliabilitykit audit validate --config /tmp/audit.local.yml`
+- `reliabilitykit audit check-cycle --config /tmp/audit.local.yml --cycle-id local-001 --storage-root .reliabilitykit`
+- `reliabilitykit audit report --config /tmp/audit.local.yml --result-json .reliabilitykit/audits/local-api-reliability-audit/results/local-001.json --output-dir .reliabilitykit/audits/reports`
 - `reliabilitykit audit deliver --config <audit.yml> --html-path <report.html> --csv-path <audit.csv> --bucket <private-bucket>`
 - `reliabilitykit audit retention-create --config <audit.yml> --result-json <result.json>`
 - `reliabilitykit audit retention-process`
 
 ## 4. Data / Persistence Implementation
 Local persistence writes sanitized metadata only under `.reliabilitykit/audits/` and retention ledger records under `.reliabilitykit/retention/`. CSV exports use the approved columns only: `audit_id`, `check_cycle_id`, `endpoint_id`, `method`, `path`, `timestamp`, `status_code`, `available`, `latency_ms`, `expected_latency_ms`, `latency_status`, `error_category`, `error_summary`.
+
+The documented local output paths match existing implementation behavior:
+- Check-cycle result JSON: `.reliabilitykit/audits/<audit_id>/results/<cycle_id>.json`
+- HTML report: `.reliabilitykit/audits/reports/<audit_id>/audit_report.html`
+- Sanitized CSV: `.reliabilitykit/audits/reports/<audit_id>/audit_sanitized.csv`
 
 `AuditConfig` now includes `check_frequency_agreement_reference` for above-default frequency approval references. `PrivacyPolicy` now includes explicit raw log/raw response/stack-trace collection, inclusion, and persistence flags; all default to `false` and require both `raw_data_written_demand_reference` and `raw_data_exception_reference` when enabled.
 
@@ -46,9 +56,12 @@ Local persistence writes sanitized metadata only under `.reliabilitykit/audits/`
 - AC-10: Resilience/burst request is blocked without separate written approval and is not part of standard check-cycle logic.
 - AC-11: Latency pass/fail labels are produced only when endpoint thresholds exist; otherwise `observed_only` is used.
 - AC-12: Standard schedule defaults are 48 hours, 5 checks/day, and 10 expected cycles; frequency is configurable from 1 through 24, above-default values require `check_frequency_agreement_reference`, and expected cycles must reconcile to the configured 48-hour frequency.
+- Local usability: `examples/api_reliability_audit/audit.local.yml` validates against `AuditConfig`, uses `https://httpbin.org` as real public dry-run endpoints, and documents required edits for approved client endpoints, bearer-token env var/reference handling, production/staging approval references, frequency agreement references, and raw diagnostic gates.
 
 ## 6. Security / Authorization Implemented
 Approval gates fail closed. Runtime bearer tokens are not serialized. Frequency increases above the default fail closed without an operator/client agreement reference. SMTP secrets are read from environment variables and not included in retention records, generated CSVs, reports, S3 keys, or sanitized failure categories. Artifact keys are sanitized and reject public URL-like keys. Raw logs, raw responses, and stack traces remain excluded from default display and persistence paths.
+
+The example config includes only `auth.token_secret_reference: RELIABILITYKIT_AUDIT_BEARER_TOKEN`; no bearer token value or private endpoint credential is committed. Documentation instructs users to set bearer tokens through environment variables and to keep raw diagnostic gates disabled unless the explicit written-demand and approval references exist.
 
 ## 7. Error Handling Implemented
 Validation errors block invalid configs, out-of-bound check frequencies, missing above-default frequency agreement references, mismatched expected cycles, and raw diagnostic artifact exceptions without both request and approval references. Endpoint HTTP/network failures become sanitized result rows with category/summary. SMTP config and delivery failures become retryable retention states with `delivery_status=retry_pending`, incremented `attempt_count`, `last_attempt_at`, and sanitized `last_error_category`. Already-sent retention records are idempotent unless explicitly overridden.
@@ -64,6 +77,7 @@ The implementation surfaces operator-readable CLI status for validation, artifac
 - S3 uses optional `boto3` or an injected compatible client; no new required dependency was added.
 - `check_frequency_agreement_reference` is the backend field name used for operator/client agreement evidence when `checks_per_day > 5`; it is a reference only and is not rendered in customer-facing artifacts.
 - Expected cycles for the standard 48-hour audit are derived as `(schedule_duration_hours * checks_per_day) / 24` and must resolve to whole cycles.
+- The checked-in local audit example uses public `https://httpbin.org` endpoints as real dry-run targets. Operators must replace them with approved client endpoints for an actual audit.
 
 ## 10. Validation Performed
 - `python -m pytest ...` — failed locally because `python` executable is not available in this shell.
@@ -72,12 +86,17 @@ The implementation surfaces operator-readable CLI status for validation, artifac
 - `./.venv/bin/python -m pytest tests/unit` — passed: 42 passed.
 - `./.venv/bin/python -m pytest tests/unit/test_api_reliability_audit_mvp.py tests/unit/test_cli_commands.py tests/unit/test_storage_local.py` — passed after HITL corrections: 26 passed in 0.40s.
 - `./.venv/bin/python -m pytest tests/unit` — passed after HITL corrections: 56 passed in 0.37s.
+- `./.venv/bin/reliabilitykit audit validate --config examples/api_reliability_audit/audit.local.yml` — failed locally because the installed console script could not import the local package (`ModuleNotFoundError: No module named 'reliabilitykit'`).
+- `./.venv/bin/python -m reliabilitykit.cli.main audit validate --config examples/api_reliability_audit/audit.local.yml` — passed: `Audit config valid: local-api-reliability-audit endpoints=2 schedule=48h/5 checks per day/10 cycles`.
+- `./.venv/bin/python -m pytest tests/unit/test_api_reliability_audit_mvp.py tests/unit/test_cli_commands.py tests/unit/test_storage_local.py` — passed after usability correction: 27 passed in 0.46s.
+- `./.venv/bin/python -m pytest tests/unit` — passed after usability correction: 58 passed in 0.38s.
 
 ## 11. Known Limitations / Follow-Ups
 - AC-13 static landing page implementation/testing is frontend scope and was not implemented here.
 - Real AWS/IAM and real SMTP provider integration were not exercised locally; unit tests use injected clients/factories.
 - Written waiver/checklist storage remains reference-only per architecture; no automated contract verification was added.
 - Post-retention deletion/archive policy remains unresolved by design and was not implemented.
+- The default example endpoints are public dry-run endpoints, not a substitute for operator-approved client staging/production endpoints.
 
 ## 12. Commit Status
-Initial MVP committed as `856b2fd` (`feat(backend): implement api reliability audit mvp`). HITL corrections committed as `af20224` (`fix(backend): apply audit mvp hitl corrections`).
+Initial MVP committed as `856b2fd` (`feat(backend): implement api reliability audit mvp`). HITL corrections committed as `af20224` (`fix(backend): apply audit mvp hitl corrections`). Usability correction commit pending at report update time.

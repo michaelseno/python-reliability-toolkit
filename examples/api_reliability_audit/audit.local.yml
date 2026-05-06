@@ -1,0 +1,69 @@
+# Copy this file before editing for a client/operator run, for example:
+# cp examples/api_reliability_audit/audit.local.yml /tmp/my-audit.yml
+#
+# The default endpoints target https://httpbin.org so the validate -> check-cycle ->
+# report workflow can be tried locally against real public HTTP endpoints. Replace
+# base_url/path values with the approved client staging or production endpoints
+# before running an actual audit.
+audit_id: local-api-reliability-audit
+client_name: Local API Reliability Audit
+client_email: operator@example.com
+environment: staging
+production_waiver_reference: null
+internal_approval_reference: null
+
+endpoints:
+  - endpoint_id: httpbin-status-200
+    method: GET
+    base_url: https://httpbin.org
+    path: /status/200
+    expected_latency_ms: 1500
+    enabled: true
+    notes: Replace with an approved client endpoint before a real audit.
+  - endpoint_id: httpbin-get
+    method: GET
+    base_url: https://httpbin.org
+    path: /get
+    expected_latency_ms: null
+    enabled: true
+    notes: Observed-latency-only example; do not store secrets in notes.
+
+# Bearer tokens are resolved at runtime from this environment variable name.
+# The token value itself must never be committed to this file, reports, CSVs, or logs.
+# Remove the auth block only when auditing endpoints that do not require bearer auth.
+auth:
+  auth_type: bearer_token
+  token_secret_reference: RELIABILITYKIT_AUDIT_BEARER_TOKEN
+  header_name: Authorization
+  token_prefix: Bearer
+
+schedule_duration_hours: 48
+checks_per_day: 5
+expected_check_cycles: 10
+check_frequency_agreement_reference: null
+
+privacy_policy:
+  store_raw_bodies: false
+  store_raw_headers: false
+  store_trace_logs: false
+  collect_raw_logs: false
+  include_raw_logs: false
+  persist_raw_logs: false
+  collect_raw_responses: false
+  include_raw_responses: false
+  persist_raw_responses: false
+  collect_stack_traces: false
+  include_stack_traces: false
+  persist_stack_traces: false
+  raw_data_exception_reference: null
+  raw_data_written_demand_reference: null
+  sanitized_metadata_retention_days: 90
+
+resilience_burst_requested: false
+resilience_burst_approval_reference: null
+report_artifact_prefix: api-reliability-audits
+
+retention:
+  enabled: true
+  retention_days: 90
+  delivery_mode: attachment

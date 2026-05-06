@@ -8,11 +8,14 @@ Add audit domain models and fail-closed validation, sanitized check execution me
 
 HITL correction scope updates schedule validation so `checks_per_day` remains defaulted to 5 but is configurable from 1 through 24, requires an operator/client agreement reference when increased above 5, and reconciles `expected_check_cycles` with the configured frequency. It also strengthens the raw diagnostic artifact gate so raw logs, raw responses, and stack traces are excluded from display and persistence by default and require explicit client request plus written approval/reference for any collection, inclusion, or persistence exception.
 
+HITL usability correction scope adds a schema-valid, copy-editable local audit YAML and explicit validate → check-cycle → report documentation using produced result JSON paths. No convenience/sample-report command will be added.
+
 ## 3. Source Inputs
 - `docs/architecture/api_reliability_audit_mvp_architecture.md`
 - `docs/product/api_reliability_audit_mvp_spec.md`
 - `docs/qa/api_reliability_audit_mvp_test_plan.md`
 - `docs/bugs/api_reliability_audit_mvp_hitl_corrections_bug_report.md`
+- `docs/bugs/api_reliability_audit_sample_report_usability_gap_bug_report.md`
 - `docs/release/api_reliability_audit_mvp_implementation_issue.md`
 - Existing `reliabilitykit` CLI/core/reporting/storage/test conventions.
 
@@ -20,6 +23,11 @@ HITL correction scope updates schedule validation so `checks_per_day` remains de
 No public or customer-facing backend API contracts are in MVP scope.
 
 Operator-facing CLI commands will be added under `reliabilitykit audit` for validating configs, running one check cycle, generating reports, delivering via private S3 presigned URLs, creating retention records, and processing expired retention records.
+
+The local documented audit workflow uses existing commands only:
+- `reliabilitykit audit validate --config <audit.yml>`
+- `reliabilitykit audit check-cycle --config <audit.yml> --cycle-id <cycle_id> --storage-root .reliabilitykit`
+- `reliabilitykit audit report --config <audit.yml> --result-json .reliabilitykit/audits/<audit_id>/results/<cycle_id>.json --output-dir .reliabilitykit/audits/reports`
 
 ## 5. Data Models / Storage Affected
 - New audit models: `AuditConfig`, `AuditEndpoint`, `BearerAuthConfig`, `PrivacyPolicy`, `RetentionPolicy`, `EndpointAuditResult`, `AuditResult`, and `RetentionRecord`.
@@ -29,6 +37,8 @@ Operator-facing CLI commands will be added under `reliabilitykit audit` for vali
 - Local sanitized workspace under `.reliabilitykit/audits/` and `.reliabilitykit/retention/` only.
 - CSV contract exactly: `audit_id`, `check_cycle_id`, `endpoint_id`, `method`, `path`, `timestamp`, `status_code`, `available`, `latency_ms`, `expected_latency_ms`, `latency_status`, `error_category`, `error_summary`.
 - Private S3 object upload/presign helper; no public ACL or permanent URL behavior.
+- Local check-cycle output path remains `.reliabilitykit/audits/<audit_id>/results/<cycle_id>.json`.
+- Local report output paths remain `.reliabilitykit/audits/reports/<audit_id>/audit_report.html` and `.reliabilitykit/audits/reports/<audit_id>/audit_sanitized.csv`.
 
 ## 6. Files Expected to Change
 - `reliabilitykit/core/audit.py`
@@ -40,11 +50,15 @@ Operator-facing CLI commands will be added under `reliabilitykit audit` for vali
 - `reliabilitykit/cli/main.py`
 - Unit tests under `tests/unit/`
 - Backend implementation documentation under `docs/backend/`
+- `examples/api_reliability_audit/audit.local.yml`
+- `examples/api_reliability_audit/README.md`
 
 ## 7. Security / Authorization Considerations
 Production audits fail closed without waiver and internal approval references. Resilience/burst execution remains outside the standard workflow and is blocked without a separate approval reference. Bearer token values are read from runtime env vars only and are not serialized to models, reports, CSV, logs, S3 keys, emails, or errors. Raw bodies, raw headers, and trace logs are not stored by default; raw storage flags require a documented exception reference.
 
 Frequency increases above the default are blocked unless an operator/client agreement reference is captured. Raw logs, raw responses, and stack traces are not included in generated reports, CSV exports, local sanitized workspace files, retention exports, email payloads, or S3 artifacts by default.
+
+The example config stores only a bearer-token environment variable/reference, not a token value. Production/staging approval and raw diagnostic gates are documented as operator-editable references and default to safe non-production/no-raw behavior.
 
 ## 8. Dependencies / Constraints
 No new required dependency will be added. S3 support will use optional `boto3` when available or an injected test/client object. SMTP uses Python standard-library `smtplib`/`email` and environment variables defined by the architecture.
@@ -57,7 +71,9 @@ No new required dependency will be added. S3 support will use optional `boto3` w
 - The operator/client agreement reference for `checks_per_day > 5` is represented as `check_frequency_agreement_reference`; this is a reference string only and is not rendered in customer-facing artifacts.
 - For the 48-hour standard audit, expected check cycles are derived exactly as `(48 * checks_per_day) / 24`, yielding `2 * checks_per_day`.
 - Existing raw body/header/trace exception references are reused as the explicit request and written approval gate for raw logs, raw responses, and stack traces to avoid adding a separate approval workflow.
+- The copy-editable local example uses `https://httpbin.org` as a real public HTTP dry-run target so users can try the workflow locally, while documentation requires replacing endpoints with approved client staging or production targets for actual audits.
 
 ## 10. Validation Plan
 - `./.venv/bin/python -m pytest tests/unit/test_api_reliability_audit_mvp.py tests/unit/test_cli_commands.py tests/unit/test_storage_local.py`
 - Broader unit suite if feasible: `python -m pytest tests/unit`
+- `./.venv/bin/reliabilitykit audit validate --config examples/api_reliability_audit/audit.local.yml`

@@ -26,6 +26,7 @@ and HTML reports so every run becomes analyzable data.
 - Seed strategy: `docs/seed-strategy.md`
 - S3 architecture plan: `docs/s3-architecture-plan.md`
 - AWS Lambda dashboard build: `docs/aws-phase-d-lambda.md`
+- API Reliability Audit local workflow: `examples/api_reliability_audit/README.md`
 
 Archived root-level compatibility stubs now live in `docs/archive/`.
 

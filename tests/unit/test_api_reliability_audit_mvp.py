@@ -14,9 +14,11 @@ from reliabilitykit.core.audit import (
     PrivacyPolicy,
     RetentionRecord,
     execute_check_cycle,
+    load_audit_config,
     make_retention_record,
 )
 from reliabilitykit.reporting.audit import CSV_COLUMNS, write_audit_csv, write_audit_html_report
+from reliabilitykit.storage.local import LocalStorageBackend
 from reliabilitykit.storage.retention import SmtpDeliveryConfig, process_retention_record
 from reliabilitykit.storage.s3 import S3StorageBackend, build_audit_artifact_key
 
@@ -253,6 +255,51 @@ def test_ac5_private_s3_presigned_delivery_uses_private_acl(tmp_path: Path) -> N
     assert SENTINEL_TOKEN not in key
     with pytest.raises(ValueError):
         s3.upload_private_file(artifact, "https://public.example/report.html")
+
+
+def test_hitl_example_audit_config_validates_and_documented_paths_match(tmp_path: Path) -> None:
+    example_config = Path(__file__).parents[2] / "examples" / "api_reliability_audit" / "audit.local.yml"
+    cfg = load_audit_config(example_config)
+    assert cfg.audit_id == "local-api-reliability-audit"
+    assert cfg.auth is not None
+    assert cfg.auth.token_secret_reference == "RELIABILITYKIT_AUDIT_BEARER_TOKEN"
+    assert cfg.checks_per_day == 5
+    assert cfg.expected_check_cycles == 10
+    assert all(endpoint.base_url.startswith("https://") for endpoint in cfg.endpoints)
+
+    now = datetime(2026, 5, 5, tzinfo=UTC)
+    result = AuditResult(
+        audit_id=cfg.audit_id,
+        check_cycle_id="local-001",
+        started_at=now,
+        ended_at=now,
+        retention_expires_at=now + timedelta(days=90),
+        endpoint_results=[
+            EndpointAuditResult(
+                audit_id=cfg.audit_id,
+                check_cycle_id="local-001",
+                endpoint_id=cfg.endpoints[0].endpoint_id,
+                method=cfg.endpoints[0].method,
+                path=cfg.endpoints[0].path,
+                timestamp=now,
+                status_code=200,
+                available=True,
+                latency_ms=100,
+                expected_latency_ms=cfg.endpoints[0].expected_latency_ms,
+            )
+        ],
+    )
+
+    storage_root = tmp_path / ".reliabilitykit"
+    result_path = LocalStorageBackend(storage_root).write_audit_result(result)
+    assert result_path == storage_root / "audits" / cfg.audit_id / "results" / "local-001.json"
+
+    report_root = storage_root / "audits" / "reports"
+    report_dir = report_root / cfg.audit_id
+    csv_path = write_audit_csv(result, report_dir / "audit_sanitized.csv")
+    html_path = write_audit_html_report(cfg, result, report_dir / "audit_report.html", csv_href=csv_path.name)
+    assert html_path == storage_root / "audits" / "reports" / cfg.audit_id / "audit_report.html"
+    assert csv_path == storage_root / "audits" / "reports" / cfg.audit_id / "audit_sanitized.csv"
 
 
 def smtp_env(**overrides: str) -> dict[str, str]:
