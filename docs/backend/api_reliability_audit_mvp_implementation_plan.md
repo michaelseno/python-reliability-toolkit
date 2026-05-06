@@ -10,12 +10,15 @@ HITL correction scope updates schedule validation so `checks_per_day` remains de
 
 HITL usability correction scope adds a schema-valid, copy-editable local audit YAML and explicit validate → check-cycle → report documentation using produced result JSON paths. The current HITL correction streamlines the local workflow to `rk audit run --config ...` followed by `rk audit generate-report --id ...`. No convenience/sample-report command will be added.
 
+HITL packaging correction scope fixes installed CLI importability for editable installs where Python does not process the editable `.pth` file, while preserving both `reliabilitykit` and short `rk` installed commands.
+
 ## 3. Source Inputs
 - `docs/architecture/api_reliability_audit_mvp_architecture.md`
 - `docs/product/api_reliability_audit_mvp_spec.md`
 - `docs/qa/api_reliability_audit_mvp_test_plan.md`
 - `docs/bugs/api_reliability_audit_mvp_hitl_corrections_bug_report.md`
 - `docs/bugs/api_reliability_audit_sample_report_usability_gap_bug_report.md`
+- `docs/bugs/api_reliability_audit_rk_entrypoint_import_bug_report.md`
 - `docs/release/api_reliability_audit_mvp_implementation_issue.md`
 - Existing `reliabilitykit` CLI/core/reporting/storage/test conventions.
 
@@ -23,6 +26,8 @@ HITL usability correction scope adds a schema-valid, copy-editable local audit Y
 No public or customer-facing backend API contracts are in MVP scope.
 
 Operator-facing CLI commands will be available under `reliabilitykit audit` and the short `rk audit` console entry point for validating configs, running one check cycle, generating reports, delivering via private S3 presigned URLs, creating retention records, and processing expired retention records.
+
+Installed command wrappers must load `reliabilitykit.cli.main:app` without relying on the repository current working directory. The wrapper may use editable-install metadata only as a fallback when the normal package import path is unavailable.
 
 The local documented audit workflow uses streamlined commands:
 - `rk audit run --config <audit.yml>` — `--config` is required, validates config, runs one check cycle, writes `.reliabilitykit/audits/<audit_id>/results/<cycle_id>.json`, snapshots audit metadata, and prints `audit_id` plus result path.
@@ -49,6 +54,8 @@ The local documented audit workflow uses streamlined commands:
 - `reliabilitykit/cli/commands/audit.py`
 - `reliabilitykit/cli/main.py`
 - `pyproject.toml`
+- `scripts/reliabilitykit`
+- `scripts/rk`
 - Unit tests under `tests/unit/`
 - Backend implementation documentation under `docs/backend/`
 - `examples/api_reliability_audit/audit.local.yml`
@@ -64,6 +71,8 @@ The example config stores only a bearer-token environment variable/reference, no
 ## 8. Dependencies / Constraints
 No new required dependency will be added. S3 support will use optional `boto3` when available or an injected test/client object. SMTP uses Python standard-library `smtplib`/`email` and environment variables defined by the architecture.
 
+The installed CLI fallback must use only standard-library packaging/runtime metadata access and must not hardcode repository paths or secrets.
+
 ## 9. Assumptions
 - Initial and retention fallback presigned URL expiration defaults to 7 days where not specified; operators may override per command/helper.
 - Latency equal to threshold is treated as `pass` because the observed latency is not greater than the client threshold.
@@ -76,8 +85,11 @@ No new required dependency will be added. S3 support will use optional `boto3` w
 - `audit run` generates a UTC timestamp-based cycle id because the confirmed requirement does not specify a caller-provided cycle id for the streamlined command.
 - `audit generate-report` uses the newest result file by filesystem modification time, with filename as a tie-breaker.
 - If an audit metadata snapshot is unavailable, `audit generate-report` falls back to minimal result-derived metadata so historical sanitized results can still render; new `audit run` and `check-cycle` executions write the snapshot.
+- Python 3.13 on macOS may skip `.pth` files that carry the `UF_HIDDEN` flag; the installed script wrapper can safely recover editable source location from `direct_url.json` because `uv pip install -e .` writes that local editable metadata.
 
 ## 10. Validation Plan
 - `./.venv/bin/python -m pytest tests/unit/test_api_reliability_audit_mvp.py tests/unit/test_cli_commands.py`
 - Broader unit suite if feasible: `python -m pytest tests/unit`
 - `./.venv/bin/rk audit run --config examples/api_reliability_audit/audit.local.yml`
+- `uv pip install -e .`
+- From outside the repository CWD: `./.venv/bin/rk --help` and `./.venv/bin/reliabilitykit --help`

@@ -7,6 +7,8 @@ HITL correction implemented configurable audit frequency and stronger raw diagno
 
 HITL usability correction added a concrete copy-editable audit YAML and local operator documentation for the required validate → check-cycle → report workflow. The latest HITL correction streamlines that workflow with the short `rk` executable, `rk audit run --config ...`, and `rk audit generate-report --id ...`; no convenience/sample-report command was added.
 
+HITL packaging correction replaced generated entry-point shims with installed script wrappers for `rk` and `reliabilitykit` so both commands can load `reliabilitykit.cli.main:app` after editable install even when the editable `.pth` file is skipped by Python startup.
+
 ## 2. Files Modified
 - `docs/backend/api_reliability_audit_mvp_implementation_plan.md` — backend implementation plan and assumptions.
 - `docs/backend/api_reliability_audit_mvp_implementation_report.md` — implementation report and validation evidence.
@@ -20,7 +22,9 @@ HITL usability correction added a concrete copy-editable audit YAML and local op
 - `reliabilitykit/storage/local.py` — local audit result persistence, config snapshot persistence, and latest-result discovery helpers.
 - `reliabilitykit/cli/commands/audit.py` — operator CLI commands for validation, streamlined audit run, latest-result report generation, lower-level check/report compatibility, S3 delivery, retention record creation, and retention processing.
 - `reliabilitykit/cli/main.py` — registered the `reliabilitykit audit` command group.
-- `pyproject.toml` — added `rk` console script alias while preserving `reliabilitykit`.
+- `pyproject.toml` — switched installed CLI commands to packaged script files while preserving both `reliabilitykit` and `rk` command names.
+- `scripts/rk` — installed short CLI wrapper that imports `reliabilitykit.cli.main:app`, with an editable-metadata fallback when the package is not on `sys.path`.
+- `scripts/reliabilitykit` — installed long CLI wrapper with the same import behavior as `rk`.
 - `tests/unit/test_cli_commands.py` — CLI coverage for required `--config`, audit run persistence/snapshot behavior, latest result discovery/report paths, and absence of `sample-report`.
 - `tests/unit/test_api_reliability_audit_mvp.py` — AC-focused backend unit coverage for endpoint caps, approval gates, sanitized artifacts, S3 delivery, retention SMTP, and latency/schedule behavior.
 - `examples/api_reliability_audit/audit.local.yml` — schema-valid local audit config targeting real public configurable endpoints for dry-run use.
@@ -39,6 +43,8 @@ Operator commands include:
 - `reliabilitykit audit deliver --config <audit.yml> --html-path <report.html> --csv-path <audit.csv> --bucket <private-bucket>`
 - `reliabilitykit audit retention-create --config <audit.yml> --result-json <result.json>`
 - `reliabilitykit audit retention-process`
+
+The installed `rk` and `reliabilitykit` scripts both dispatch to `reliabilitykit.cli.main:app`. Their normal path is a direct import; the fallback path reads local editable-install metadata from `reliabilitykit-*.dist-info/direct_url.json` and prepends the editable project path only when the top-level package import is unavailable.
 
 ## 4. Data / Persistence Implementation
 Local persistence writes sanitized metadata only under `.reliabilitykit/audits/` and retention ledger records under `.reliabilitykit/retention/`. CSV exports use the approved columns only: `audit_id`, `check_cycle_id`, `endpoint_id`, `method`, `path`, `timestamp`, `status_code`, `available`, `latency_ms`, `expected_latency_ms`, `latency_status`, `error_category`, `error_summary`.
@@ -63,14 +69,19 @@ The documented local output paths match existing implementation behavior:
 - AC-11: Latency pass/fail labels are produced only when endpoint thresholds exist; otherwise `observed_only` is used.
 - AC-12: Standard schedule defaults are 48 hours, 5 checks/day, and 10 expected cycles; frequency is configurable from 1 through 24, above-default values require `check_frequency_agreement_reference`, and expected cycles must reconcile to the configured 48-hour frequency.
 - Local usability: `examples/api_reliability_audit/audit.local.yml` validates against `AuditConfig`, uses `https://httpbin.org` as real public dry-run endpoints, and documents required edits for approved client endpoints, bearer-token env var/reference handling, production/staging approval references, frequency agreement references, and raw diagnostic gates. `audit run` validates config and snapshots metadata before writing a one-cycle result; `generate-report` finds the latest persisted result by audit id and writes the confirmed report paths.
+- Packaging: `rk` and `reliabilitykit` no longer rely solely on a generated console-entrypoint shim. This avoids the observed macOS/Python 3.13 editable-install failure mode where the generated shim imports before the editable source path is available.
 
 ## 6. Security / Authorization Implemented
 Approval gates fail closed. Runtime bearer tokens are not serialized. Frequency increases above the default fail closed without an operator/client agreement reference. SMTP secrets are read from environment variables and not included in retention records, generated CSVs, reports, S3 keys, or sanitized failure categories. Artifact keys are sanitized and reject public URL-like keys. Raw logs, raw responses, and stack traces remain excluded from default display and persistence paths.
+
+The CLI wrapper fallback reads only package installer metadata and does not log or expose sensitive values.
 
 The example config includes only `auth.token_secret_reference: RELIABILITYKIT_AUDIT_BEARER_TOKEN`; no bearer token value or private endpoint credential is committed. Documentation instructs users to set bearer tokens through environment variables and to keep raw diagnostic gates disabled unless the explicit written-demand and approval references exist.
 
 ## 7. Error Handling Implemented
 Validation errors block omitted required `audit run --config`, invalid configs, out-of-bound check frequencies, missing above-default frequency agreement references, mismatched expected cycles, and raw diagnostic artifact exceptions without both request and approval references. `generate-report` fails clearly when no result JSON exists for the requested audit id. Endpoint HTTP/network failures become sanitized result rows with category/summary. SMTP config and delivery failures become retryable retention states with `delivery_status=retry_pending`, incremented `attempt_count`, `last_attempt_at`, and sanitized `last_error_category`. Already-sent retention records are idempotent unless explicitly overridden.
+
+If normal package import fails and no usable editable metadata exists, the installed scripts re-raise the import failure rather than hiding it or silently dispatching a partial CLI.
 
 ## 8. Observability / Logging
 The implementation surfaces operator-readable CLI status for validation, generated audit id/result paths, report output paths, delivery URLs, and retention processing. Failure state is recorded in retention records without secrets. No raw body/header/trace logging was added.
@@ -87,6 +98,7 @@ The implementation surfaces operator-readable CLI status for validation, generat
 - `audit run` uses a UTC timestamp-based cycle id because the streamlined command does not accept a manual cycle id in the confirmed contract.
 - `generate-report` treats the newest result JSON as the file with the latest modification time, using filename as a deterministic tie-breaker.
 - `generate-report` uses persisted audit metadata snapshots when available and falls back to minimal result-derived metadata for older result files without snapshots.
+- The editable-install fallback assumes `direct_url.json` is present for `uv pip install -e .`, which is standard for the validated installer path.
 
 ## 10. Validation Performed
 - `python -m pytest ...` — failed locally because `python` executable is not available in this shell.
@@ -102,6 +114,17 @@ The implementation surfaces operator-readable CLI status for validation, generat
 - `./.venv/bin/python -m pytest tests/unit/test_cli_commands.py tests/unit/test_api_reliability_audit_mvp.py` — passed after streamlined CLI correction: 30 passed in 0.38s.
 - `./.venv/bin/python -m pytest tests/unit` — passed after streamlined CLI correction: 62 passed in 0.42s.
 - `uv pip install -e . && ./.venv/bin/rk --help && ./.venv/bin/rk audit --help` — passed; `rk` executable is installed and audit help lists `run`/`generate-report` with no `sample-report` command.
+- Reproduced blocker from outside the repository CWD with the existing `.venv`: `./.venv/bin/rk --help` failed with `ModuleNotFoundError: No module named 'reliabilitykit'` before the fix.
+- Confirmed root cause evidence in the existing `.venv`: Python 3.13 skipped `__editable__.reliabilitykit-0.1.0.pth` because the file carried macOS `UF_HIDDEN`; consequently the editable source path was absent from `sys.path` outside the repository CWD.
+- Fresh temp editable install check before the wrapper change passed, confirming the CLI code and package discovery are otherwise valid when `.pth` processing succeeds.
+- `uv pip install -e .` — passed after wrapper change in the repository `.venv`.
+- From `/var/folders/7y/zdp6qp9n4dz00dn9f5c3n9lr0000gn/T/opencode`: `./.venv/bin/rk --help` — passed and listed the `audit` command group.
+- From `/var/folders/7y/zdp6qp9n4dz00dn9f5c3n9lr0000gn/T/opencode`: `./.venv/bin/reliabilitykit --help` — passed and listed the `audit` command group.
+- `./.venv/bin/python -m pytest tests/unit/test_packaging_entrypoints.py tests/unit/test_cli_commands.py tests/unit/test_api_reliability_audit_mvp.py` — passed after packaging correction: 32 passed in 0.38s.
+- From `/var/folders/7y/zdp6qp9n4dz00dn9f5c3n9lr0000gn/T/opencode`: `./.venv/bin/rk audit --help` — passed and listed `run`/`generate-report`.
+- From `/var/folders/7y/zdp6qp9n4dz00dn9f5c3n9lr0000gn/T/opencode`: `./.venv/bin/rk audit run` — reached Typer validation and reported `Missing option '--config'`.
+- `./.venv/bin/python -m pytest tests/unit` — passed after packaging correction: 64 passed in 0.46s.
+- From `/var/folders/7y/zdp6qp9n4dz00dn9f5c3n9lr0000gn/T/opencode`: `./.venv/bin/rk audit run --config <repo>/examples/api_reliability_audit/audit.local.yml --storage-root <tmp>` followed by `./.venv/bin/rk audit generate-report --id local-api-reliability-audit --storage-root <tmp>` — passed, printed `audit_id`, `result_json`, `html_report`, and `sanitized_csv` paths.
 
 ## 11. Known Limitations / Follow-Ups
 - AC-13 static landing page implementation/testing is frontend scope and was not implemented here.
@@ -110,6 +133,7 @@ The implementation surfaces operator-readable CLI status for validation, generat
 - Post-retention deletion/archive policy remains unresolved by design and was not implemented.
 - The default example endpoints are public dry-run endpoints, not a substitute for operator-approved client staging/production endpoints.
 - The exact latest-result selection rule was not specified by product; implementation uses filesystem modification time.
+- The installed wrappers include a narrow editable-install fallback for environments where Python skips editable `.pth` processing. Standard installs still use normal package import behavior.
 
 ## 12. Commit Status
-Initial MVP committed as `856b2fd` (`feat(backend): implement api reliability audit mvp`). HITL corrections committed as `af20224` (`fix(backend): apply audit mvp hitl corrections`). Previous usability correction committed before this HITL loop. Streamlined CLI correction committed as `68860be` (`fix(backend): streamline audit cli workflow`).
+Initial MVP committed as `856b2fd` (`feat(backend): implement api reliability audit mvp`). HITL corrections committed as `af20224` (`fix(backend): apply audit mvp hitl corrections`). Previous usability correction committed before this HITL loop. Streamlined CLI correction committed as `68860be` (`fix(backend): streamline audit cli workflow`). Current packaging correction commit pending.
