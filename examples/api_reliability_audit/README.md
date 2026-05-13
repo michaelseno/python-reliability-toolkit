@@ -34,6 +34,8 @@ rk audit run --config examples/api_reliability_audit/audit.local.yml
 
 If you copied the config to `/tmp/audit.local.yml`, use that edited path instead. `--config` is required; the CLI does not assume a default audit config. This command validates the config, runs exactly one check cycle, snapshots sanitized audit metadata needed for later report generation, and prints the `audit_id` plus result JSON path.
 
+During each check cycle, ReliabilityKit resolves the standard `core_reliability_scan` scan pack and records a sanitized result row for every scan-pack scenario on every enabled endpoint. `Burst Stability` is included as a bounded standard stability check only: maximum 5 total requests per endpoint per cycle, maximum concurrency 3, maximum duration 10 seconds, no ramp-up, no sustained/soak duration, no throughput or capacity objective, no cross-endpoint simultaneous burst by default, and no extra retries. Other load, stress, chaos, destructive, fault-injection, or broader resilience tests are not part of the standard audit unless separately approved.
+
 The produced sanitized result JSON path is written under:
 
 ```text
@@ -65,6 +67,7 @@ The generated report artifacts are:
 ```text
 .reliabilitykit/audits/reports/local-api-reliability-audit/audit_report.html
 .reliabilitykit/audits/reports/local-api-reliability-audit/audit_sanitized.csv
+.reliabilitykit/audits/reports/local-api-reliability-audit/audit_scan_results_sanitized.csv
 ```
 
 In general, report output is written to:
@@ -72,7 +75,10 @@ In general, report output is written to:
 ```text
 .reliabilitykit/audits/reports/<audit_id>/audit_report.html
 .reliabilitykit/audits/reports/<audit_id>/audit_sanitized.csv
+.reliabilitykit/audits/reports/<audit_id>/audit_scan_results_sanitized.csv
 ```
+
+The HTML report is a static/offline-friendly SaaS-style audit dashboard with an executive verdict, KPI cards, prioritized findings, endpoint health scorecards, per-endpoint scan-pack matrices, test-level detail cards, latency/availability summaries, methodology/scope notes, privacy notes, and links to sanitized CSV metadata. The CSV artifacts exclude bearer tokens, raw responses, raw headers, raw response bodies, raw logs, trace logs, stack traces, and secret references by default.
 
 Open the report on macOS:
 

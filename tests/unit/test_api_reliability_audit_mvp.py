@@ -17,7 +17,8 @@ from reliabilitykit.core.audit import (
     load_audit_config,
     make_retention_record,
 )
-from reliabilitykit.reporting.audit import CSV_COLUMNS, write_audit_csv, write_audit_html_report
+from reliabilitykit.core.scan_packs import resolve_scan_pack
+from reliabilitykit.reporting.audit import CSV_COLUMNS, SCAN_RESULTS_CSV_COLUMNS, write_audit_csv, write_audit_html_report, write_scan_results_csv
 from reliabilitykit.storage.local import LocalStorageBackend
 from reliabilitykit.storage.retention import SmtpDeliveryConfig, process_retention_record
 from reliabilitykit.storage.s3 import S3StorageBackend, build_audit_artifact_key
@@ -226,9 +227,56 @@ def test_ac6_check_cycle_does_not_persist_response_body_headers_or_trace(monkeyp
     monkeypatch.setattr("reliabilitykit.core.audit.urlopen", lambda *args, **kwargs: Response())
     audit_result = execute_check_cycle(config(), "cycle-1")
     serialized = audit_result.model_dump_json()
+    assert len(audit_result.scan_results) == len(resolve_scan_pack("core_reliability_scan").scenario_ids)
+    assert {row.scenario_id for row in audit_result.scan_results} == set(resolve_scan_pack("core_reliability_scan").scenario_ids)
+    burst = next(row for row in audit_result.scan_results if row.scenario_id == "burst_stability")
+    assert burst.status == "pass"
+    assert burst.sample_count == 5
+    assert "max_concurrency=3" in (burst.evidence_summary or "")
     assert SENTINEL_BODY not in serialized
     assert SENTINEL_HEADER not in serialized
     assert SENTINEL_TRACE not in serialized
+
+
+def test_hitl_scan_pack_results_csv_and_report_render_scan_matrix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    class Response:
+        status = 200
+
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            return None
+
+        def read(self, _: int = -1) -> bytes:
+            return SENTINEL_BODY.encode()
+
+    monkeypatch.setattr("reliabilitykit.core.audit.urlopen", lambda *args, **kwargs: Response())
+    cfg = config(endpoints=[endpoint(1, method="GET", path="/health")])
+    audit_result = execute_check_cycle(cfg, "cycle-1")
+    scan_csv = write_scan_results_csv(audit_result, tmp_path / "audit_scan_results_sanitized.csv")
+    html_report = write_audit_html_report(cfg, audit_result, tmp_path / "audit_report.html", csv_href="audit_sanitized.csv", scan_csv_href=scan_csv.name)
+
+    with scan_csv.open(encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    assert rows and list(rows[0].keys()) == SCAN_RESULTS_CSV_COLUMNS
+    assert len(rows) == 8
+    assert any(row["scenario_id"] == "burst_stability" and row["category"] == "Bounded stability check" for row in rows)
+    content = html_report.read_text(encoding="utf-8")
+    assert "Executive verdict" in content
+    assert "Per-endpoint scan-pack matrix" in content
+    assert "Burst Stability" in content
+    assert "not a load, stress, chaos, destructive, or broader resilience test" in content
+    assert "max 5 total requests" in content
+    for forbidden in [SENTINEL_TOKEN, SENTINEL_BODY, "Authorization", "throughput benchmarking", "autoscaling validation"]:
+        assert forbidden not in content + scan_csv.read_text(encoding="utf-8")
+
+
+def test_hitl_standard_scan_pack_excludes_unapproved_load_chaos_fault_scenarios() -> None:
+    scenario_ids = set(resolve_scan_pack("core_reliability_scan").scenario_ids)
+    assert "burst_stability" in scenario_ids
+    explicitly_unapproved = {"load_test", "stress_test", "soak_test", "capacity_test", "chaos_injection", "fault_injection", "destructive_test"}
+    assert scenario_ids.isdisjoint(explicitly_unapproved)
 
 
 def test_ac5_private_s3_presigned_delivery_uses_private_acl(tmp_path: Path) -> None:

@@ -7,7 +7,7 @@ from pathlib import Path
 import typer
 
 from reliabilitykit.core.audit import AuditConfig, AuditEndpoint, AuditResult, execute_check_cycle, load_audit_config, load_audit_result, make_retention_record, validate_audit_config
-from reliabilitykit.reporting.audit import write_audit_csv, write_audit_html_report
+from reliabilitykit.reporting.audit import write_audit_csv, write_audit_html_report, write_scan_results_csv
 from reliabilitykit.storage.local import LocalStorageBackend
 from reliabilitykit.storage.retention import process_retention_record
 from reliabilitykit.storage.s3 import S3StorageBackend, build_audit_artifact_key
@@ -97,9 +97,11 @@ def report(
     result = load_audit_result(result_json)
     out = Path(output_dir) / audit_config.audit_id
     csv_path = write_audit_csv(result, out / "audit_sanitized.csv")
-    html_path = write_audit_html_report(audit_config, result, out / "audit_report.html", csv_href=csv_path.name)
+    scan_csv_path = write_scan_results_csv(result, out / "audit_scan_results_sanitized.csv")
+    html_path = write_audit_html_report(audit_config, result, out / "audit_report.html", csv_href=csv_path.name, scan_csv_href=scan_csv_path.name)
     typer.echo(f"HTML report generated: {html_path}")
     typer.echo(f"Sanitized CSV generated: {csv_path}")
+    typer.echo(f"Sanitized scan-results CSV generated: {scan_csv_path}")
 
 
 @audit_app.command("generate-report")
@@ -115,11 +117,13 @@ def generate_report(
     audit_config = storage.read_audit_config_snapshot(audit_id) or _fallback_config_from_result(result)
     out = Path(storage_root) / "audits" / "reports" / audit_id
     csv_path = write_audit_csv(result, out / "audit_sanitized.csv")
-    html_path = write_audit_html_report(audit_config, result, out / "audit_report.html", csv_href=csv_path.name)
+    scan_csv_path = write_scan_results_csv(result, out / "audit_scan_results_sanitized.csv")
+    html_path = write_audit_html_report(audit_config, result, out / "audit_report.html", csv_href=csv_path.name, scan_csv_href=scan_csv_path.name)
     typer.echo(f"audit_id: {audit_id}")
     typer.echo(f"result_json: {result_path}")
     typer.echo(f"html_report: {html_path}")
     typer.echo(f"sanitized_csv: {csv_path}")
+    typer.echo(f"sanitized_scan_results_csv: {scan_csv_path}")
 
 
 @audit_app.command("deliver")
