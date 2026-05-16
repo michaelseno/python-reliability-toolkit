@@ -19,11 +19,9 @@ dependencies = [
   "Jinja2>=3.1",
 ]
 
-[project.scripts]
-reliabilitykit = "reliabilitykit.cli.main:app"
-
 [tool.setuptools]
 package-dir = {"" = "."}
+script-files = ["scripts/reliabilitykit", "scripts/rk"]
 
 [tool.setuptools.packages.find]
 include = ["reliabilitykit*"]
