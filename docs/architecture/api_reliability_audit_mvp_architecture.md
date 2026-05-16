@@ -3,131 +3,146 @@
 ## 1. Feature Overview
 
 **Title:** 48-Hour API Reliability Audit MVP Technical Design  
-**Status:** Authorized for full MVP implementation on branch `feature/api_reliability_audit_mvp`  
-**Source Product Spec:** `docs/product/api_reliability_audit_mvp_spec.md`  
-**Repository:** `python_reliability_toolkit`  
-**Scope Type:** Manual/operator-assisted MVP, not SaaS
+**Status:** HITL-corrected implementation blueprint for existing branch `feature/api_reliability_audit_mvp`  
+**Source Inputs:**
 
-This document is the implementation-ready architecture for the API Reliability Audit MVP. It replaces prior planning-only language. Downstream implementation must preserve the manual/operator-assisted service boundary and must not introduce SaaS onboarding, customer accounts, login, payment, backend lead capture, or self-service audit configuration.
+- `docs/product/api_reliability_audit_mvp_spec.md`
+- `docs/bugs/api_reliability_audit_burst_stability_scope_correction_bug_report.md`
+- `docs/uiux/api_reliability_audit_report_redesign_design_spec.md`
+- `reliabilitykit/core/scan_packs.py`
+- `reliabilitykit/core/scenario_registry.py`
 
-The MVP audits up to 10 unique `METHOD + PATH` endpoints over approximately 10 check cycles across 48 hours, produces a static HTML report/dashboard and sanitized CSV export, delivers artifacts through private S3 presigned URLs, retains sanitized metadata for 90 days, then automatically emails a sanitized post-retention CSV through SMTP configured by environment variables.
+The MVP remains a manual/operator-assisted API reliability audit, not a SaaS product. It audits up to 10 unique `METHOD + PATH` endpoints across the configured 48-hour check window, executes the approved standard scan pack for each endpoint, captures sanitized reliability evidence, and generates a modern static offline-friendly HTML report plus sanitized CSV artifacts for private delivery.
+
+HITL correction resolves the prior scope ambiguity: `core_reliability_scan` from `reliabilitykit/core/scan_packs.py` is the standard MVP scan pack and includes `burst_stability`. `burst_stability` is allowed only as the bounded standard scan-pack check described in this document. It must not expand into load testing, chaos testing, destructive testing, broader fault injection, or other resilience testing without separate written approval.
 
 ## 2. Product Requirements Summary
 
-- Standard audit supports up to 10 unique `METHOD + PATH` endpoints.
-- Default duration is 48 hours with 5 checks per day, approximately 10 total check cycles; `checks_per_day` is configurable from 1 through 24, values above 5 require an operator/client agreement reference, and expected cycles reconcile to the configured frequency over 48 hours.
-- Bearer token authentication is the first supported auth method and bearer tokens must never appear in reports, CSV exports, logs, or customer-facing artifacts.
-- Production testing requires written client waiver/agreement and completed internal approval checklist before execution.
-- Default persisted data is sanitized metadata only: audit/check identifiers, endpoint identifier, method, path, timestamp, status code, availability result, latency, threshold where provided, latency status where allowed, and sanitized error/category metadata.
-- Raw logs, raw responses, raw response bodies, raw headers, trace logs, and stack traces are transient and must not be displayed or persisted by default.
-- Raw diagnostic artifact collection, report inclusion/display, or persistence requires explicit written client demand plus written approval/reference and is outside the default workflow.
-- Reports consist of a static HTML report/dashboard and sanitized CSV export.
-- Report delivery must use private S3 presigned URLs; public permanent report URLs are prohibited.
-- Sanitized metadata must be retained for 90 days, then exported to CSV and emailed to the client through automated SMTP environment-variable configuration.
-- Resilience/burst testing is optional, outside the standard workflow, and requires separate written approval.
-- Phase 1 landing page is static and informational only. CTA text must be exactly `Request a Reliability Audit` and CTA destination must be `#request-audit`.
+- Audit up to 10 unique `METHOD + PATH` endpoints.
+- Default schedule is 48 hours, 5 checks/day, approximately 10 check cycles; configurable 1-24 checks/day, with agreement reference required above 5/day.
+- Bearer token auth is the first supported auth method; bearer token values must never appear in reports, CSV exports, logs, errors, emails, or persisted customer artifacts.
+- Production execution requires written client waiver and internal approval references.
+- Default persisted data is sanitized metadata only.
+- Raw responses, bodies, headers, logs, trace logs, stack traces, tokens, and secret references are excluded by default.
+- Runtime must resolve and apply scan-pack tests from `reliabilitykit/core/scan_packs.py` for each endpoint.
+- The standard scan pack is `core_reliability_scan`, currently containing:
+  1. `baseline_health`
+  2. `repeated_stability`
+  3. `burst_stability`
+  4. `invalid_payload_handling`
+  5. `missing_fields_validation`
+  6. `auth_failure_handling`
+  7. `timeout_sensitivity`
+  8. `response_consistency`
+- Reports must show a per-endpoint scan-pack matrix and test-level details: status, severity, rationale, sanitized evidence, remediation guidance, and not-run/not-applicable rationale where relevant.
+- `burst_stability` is the only approved standard resilience-style check and must remain bounded.
+- All other fault-injection, chaos, destructive, broader resilience, and load tests remain excluded unless separately approved.
+- Reports must be modern static HTML, offline/static-friendly, accessible, and privacy-safe.
+- CSV exports must contain sanitized metadata only.
+- Report delivery uses private S3 presigned URLs; public permanent report URLs are prohibited.
+- Sanitized metadata is retained for 90 days and then exported/emailed through automated SMTP configured by environment variables.
 
 ## 3. Requirement-to-Architecture Mapping
 
-| Product Requirement / Acceptance Criterion | Technical Responsibility |
+| Requirement / Acceptance Criterion | Technical Responsibility |
 | --- | --- |
-| FR-1, AC-1 endpoint cap and uniqueness | Core audit validator normalizes endpoint identity as uppercase `METHOD + PATH` and fails closed above 10 unique identities. |
-| FR-2, AC-12 48-hour schedule | CLI/operator workflow supports configured run metadata for 48 hours, default 5 checks/day, configurable 1-24 checks/day, expected cycles reconciled to frequency, and agreement-reference gating above 5; scheduler remains operator-controlled. |
-| FR-3, AC-4 bearer token handling | Core/auth boundary accepts bearer token via sensitive runtime input or secret reference; reporting/storage/logging contracts exclude token values. |
-| FR-4, AC-2, AC-3 production authorization | Core validation requires waiver and internal approval references before production execution. |
-| FR-5, AC-6 sanitized collection only | Execution derives allowed metadata and discards raw logs, raw responses, body/header/trace data, and stack traces without writing them to local disk, S3, CSV, reports, or logs by default. |
-| FR-7, AC-11 latency thresholds | Reporting labels latency pass/fail only when `expected_latency_ms` exists; otherwise it displays observed latency only. |
-| FR-8, FR-10, AC-8 report/CSV | Reporting generates static HTML and sanitized CSV using the CSV contract in this document. |
-| FR-9, AC-5 private delivery | Storage uploads artifacts to private S3 and returns time-limited presigned URLs only. |
-| FR-11, AC-9 retention email | Retention component tracks expiry, exports retained sanitized metadata to CSV, and sends it through SMTP configured by environment variables; failures are surfaced for operator remediation. |
-| FR-12, AC-10 optional resilience/burst | Chaos/resilience paths remain outside the standard audit workflow and require separate written approval reference. |
-| FR-13, AC-13 static landing page | Static frontend contains required informational sections, exact CTA text, and `#request-audit` href with no backend behavior. |
+| Endpoint cap and uniqueness | Core validator normalizes endpoint identity as uppercase `METHOD + PATH` and fails closed above 10 unique enabled endpoints. |
+| 48-hour schedule and frequency gates | Audit config validates duration/frequency and requires agreement reference above default 5 checks/day. |
+| Bearer token safety | Auth boundary uses runtime secret references only; serializers, report builders, CSV exporters, logs, and exceptions must redact/exclude tokens and secret locations. |
+| Production authorization | Pre-run validation requires production waiver and internal approval references before any request execution. |
+| Sanitized metadata only | Execution converts raw request/response observations into approved summaries and discards raw bodies/headers/logs/traces by default. |
+| Scan-pack execution | Runtime resolves `core_reliability_scan` from `scan_packs.py` and executes or explicitly records every scenario for every endpoint. |
+| Per-endpoint scan matrix and test details | Result model captures `EndpointScanResult`; report view model groups rows by endpoint and scenario. |
+| `burst_stability` included but bounded | Scenario runner enforces fixed low request/concurrency/time bounds and records guardrail metadata; no scaling knobs may convert it into load testing. |
+| Exclude other resilience/load/fault/chaos/destructive tests | Scan-pack allowlist accepts only scenario IDs from approved `core_reliability_scan`; optional add-ons require separate approval and must not run by default. |
+| Latency thresholds | Endpoint rollups label latency pass/fail only when `expected_latency_ms` exists; otherwise `observed_only`. |
+| Static report/CSV | Reporting consumes sanitized result contracts only and emits static HTML plus sanitized CSV artifacts. |
+| Privacy-safe report | Report generation applies privacy gates, escaping, redaction scanning, and excludes raw diagnostic material by default. |
+| Private delivery and retention | Storage uses private S3 presigned URLs; retention automation sends sanitized CSV after 90 days through SMTP. |
 
 ## 4. Technical Scope
 
 ### Current Technical Scope
 
-- Operator-assisted audit configuration, validation, execution metadata, reporting, private delivery, and retention automation.
-- CLI/local-first workflow aligned with existing `reliabilitykit` package patterns.
-- Data contracts for audit config, endpoint definitions, bearer auth references, privacy policy, sanitized results, report artifacts, retention jobs, and SMTP delivery attempts.
-- Static HTML report/dashboard and sanitized CSV generation.
-- Private S3 artifact upload and presigned URL generation.
-- Automated 90-day post-retention CSV email delivery through SMTP environment variables.
-- Static landing page with informational content only and CTA `Request a Reliability Audit` linking to `#request-audit`.
+- Operator-assisted audit configuration, validation, runtime execution, sanitized result capture, report generation, private artifact delivery, and retention automation.
+- Runtime scan-pack execution for every enabled endpoint using `reliabilitykit/core/scan_packs.py`.
+- Standard MVP scan pack: `core_reliability_scan`.
+- Capture of endpoint-cycle results, scenario-level scan results, endpoint rollups, overall verdict/score, findings, remediation, sanitized evidence, and report/CSV outputs.
+- Bounded `burst_stability` as the only standard resilience-style check.
+- Modern static HTML report/dashboard with embedded CSS only and no external network dependencies.
+- Sanitized endpoint-cycle CSV and sanitized scan-results CSV.
 
 ### Out of Scope
 
-- Public/customer backend APIs for intake, lead capture, payment, login, accounts, or self-service audit configuration.
-- Landing-page form submission, email submission flow, backend lead capture, or payment initiation.
-- Automated contract signing or automated authorization verification.
-- Schema validation.
+- Public/customer backend APIs, SaaS onboarding, accounts, login, payment, forms, lead capture, or self-service audit configuration.
+- Schema validation as a generic product capability.
 - Non-bearer auth standardization, except manual operator handling outside MVP.
-- Default load/resilience/burst testing.
+- Load testing, stress testing, soak testing, capacity testing, chaos testing, destructive testing, generalized fault injection, or broader resilience suites.
+- Any additional resilience/burst scenario beyond the bounded standard `burst_stability` check unless separately approved.
 - Public S3 objects or permanent unauthenticated URLs.
-- Additional endpoint pricing implementation.
+- Raw diagnostic artifact collection, display, persistence, or export by default.
 
 ### Future Technical Considerations
 
-- Automated intake UI, customer accounts, payments, and managed monitoring only after MVP validation.
-- Expanded auth methods and schema validation if validated by customer demand.
-- More formal job queue for retention processing if local scheduler/cron is insufficient.
+- Additional scan packs after product approval and explicit safety classification.
+- Expanded auth methods and schema-aware validation.
+- Managed job queue or service runner if local/operator scheduling becomes insufficient.
 - Private CloudFront signed URLs/cookies if S3 presigned URLs become operationally limiting.
 
 ## 5. Architecture Overview
 
-The MVP is a bounded operator workflow, not a SaaS service:
+The MVP workflow remains local/operator-first:
 
-1. **Static offer discovery:** visitor views static landing page and uses CTA `Request a Reliability Audit` linking to `#request-audit` only.
-2. **Manual intake:** operator collects endpoint list, bearer auth details, thresholds, client email, environment, waiver/approval evidence, and optional burst/resilience approval status outside the website.
-3. **Audit configuration:** operator creates an `AuditConfig` with endpoint scope, auth reference, schedule, privacy policy, reporting/delivery settings, retention settings, and evidence references.
-4. **Pre-run validation:** core validation fails closed for endpoint cap, duplicates, production approval, raw-data exception requirements, and optional resilience/burst approval.
-5. **Scheduled execution:** operator-controlled scheduler/cron/manual process runs approximately 10 check cycles. Execution writes sanitized metadata only.
-6. **Reporting:** reporting builds a static HTML dashboard and sanitized CSV from sanitized metadata.
-7. **Private delivery:** storage uploads artifacts to private S3 keys and generates time-limited presigned URLs for operator/customer delivery.
-8. **Retention:** retention records expiry at 90 days from audit completion or configured retention start.
-9. **Post-retention export:** retention automation exports retained sanitized metadata to CSV and emails it to the client via SMTP environment variables. If SMTP delivery fails, failure is logged/surfaced without secrets and remains pending for operator remediation.
+1. **Manual intake:** operator collects endpoint list, auth reference, environment, latency thresholds, approval references, and privacy posture.
+2. **Audit configuration:** operator creates `AuditConfig` including `scan_pack_id = core_reliability_scan` unless a future approved pack is explicitly configured.
+3. **Pre-run validation:** core validation fails closed for endpoint cap, duplicates, production approvals, raw-data exception gates, frequency gates, and scan-pack allowlist violations.
+4. **Scan-pack resolution:** runtime calls `resolve_scan_pack(config.scan_pack_id)` and materializes scenario definitions from `scenario_registry.py`.
+5. **Scheduled cycle execution:** for each check cycle and each enabled endpoint, runtime executes all standard scan-pack scenarios or records a `not_run`, `not_applicable`, or `incomplete` result with rationale.
+6. **Sanitized capture:** scenario runners produce `EndpointScanResult` rows and endpoint-cycle observations using sanitized evidence only.
+7. **Aggregation:** report builder computes endpoint rollups, scan-pack pass rates, scores/verdicts, findings, and remediation lists.
+8. **Report/export generation:** reporting emits a static HTML dashboard plus sanitized CSV artifacts.
+9. **Private delivery:** storage uploads artifacts to private S3 keys and creates time-limited presigned URLs.
+10. **Retention:** sanitized metadata is retained for 90 days, then exported and emailed through SMTP automation.
 
 ## 6. System Components
 
-### Backend / CLI Component Responsibilities
+### `reliabilitykit/cli/`
 
-#### `reliabilitykit/cli/`
-
-- Provides operator-facing commands for audit configuration validation, check execution orchestration, report generation, private delivery, and retention processing.
+- Provides operator commands for validation, execution, report generation, private delivery, and retention processing.
 - Must not expose public/customer HTTP APIs.
-- Must display actionable validation and delivery errors without printing secrets.
+- Surfaces validation failures and execution summaries without secrets.
 
-#### `reliabilitykit/core/`
+### `reliabilitykit/core/scan_packs.py`
 
-- Owns audit-domain contracts and validation: `AuditConfig`, `AuditEndpoint`, `BearerAuthConfig`, `PrivacyPolicy`, result models, endpoint counting, approval gates, latency threshold rules, and no-raw persistence policy.
-- Owns execution-facing result normalization and sanitized error categorization.
-- Must keep bearer token values out of serializable/customer-facing models.
+- Source of approved scan-pack definitions.
+- `core_reliability_scan` is the standard MVP scan pack and must include `burst_stability` unless product scope changes.
+- Runtime must not hard-code a divergent scenario list in reporting or runners.
 
-#### `reliabilitykit/reporting/`
+### `reliabilitykit/core/scenario_registry.py`
 
-- Generates static HTML report/dashboard and sanitized CSV from sanitized result models only.
-- Applies latency labels only when thresholds are present.
-- Must not read or render raw response bodies, raw headers, traces, bearer tokens, or secret references.
-- Must support both initial CSV export and post-retention CSV export using the same sanitized CSV column contract.
+- Source of scenario metadata: scenario ID, display name, category, description/rationale, severity, marker, and tags.
+- Scenario metadata should be extended or mapped to approved remediation guidance without exposing raw data.
 
-#### `reliabilitykit/storage/`
+### `reliabilitykit/core/`
 
-- Owns local sanitized workspace behavior, private S3 artifact upload, and presigned URL generation.
-- Must configure report objects as private and must not use public-read ACLs or public static website URLs.
-- Should use immutable object keys including `audit_id` and generation timestamp unless an operator intentionally regenerates artifacts.
+- Owns audit contracts, validation, scenario execution orchestration, bounded `burst_stability` guardrails, sanitized evidence generation, result normalization, rollup/verdict calculations, and privacy gates.
+- Must keep bearer token values and secret references out of serializable/customer-facing models.
 
-#### Retention Automation Boundary
+### `reliabilitykit/reporting/`
 
-- May be implemented as CLI command plus scheduler/cron, or another repository-local automation entrypoint, but must be automated rather than manually sent.
-- Identifies audits whose sanitized metadata retention has expired.
-- Generates a sanitized CSV, chooses attachment or private S3 presigned-link delivery based on configured size/operational constraints, sends SMTP email, records delivery status, and surfaces failure for operator remediation.
+- Generates static HTML and sanitized CSV artifacts exclusively from sanitized view models.
+- Renders executive verdict, KPI cards, findings, endpoint scorecards, scan-pack matrix, test-level details, latency/availability summaries, methodology, export section, and privacy notes.
+- Must not fetch external assets, make network calls, use analytics, or depend on JavaScript for core content.
 
-#### Static Frontend Boundary
+### `reliabilitykit/storage/`
 
-- Static landing page only.
-- Required sections: hero, value proposition, what is included, privacy/safety guarantees, pricing, how it works, FAQ, and CTA.
-- CTA text exactly `Request a Reliability Audit`; href exactly `#request-audit`.
-- No forms, no backend API calls, no email submission flow, no login, no payment.
+- Owns sanitized local workspace, private S3 artifact upload, and presigned URL generation.
+- Must prevent public-read ACLs/public static website delivery.
+
+### Retention Automation Boundary
+
+- CLI command plus scheduler/cron or repository-local automation entrypoint.
+- Processes expired retention records, regenerates sanitized CSV from retained sanitized metadata, sends SMTP email, and records sanitized delivery state.
 
 ## 7. Data Models
 
@@ -139,7 +154,7 @@ Defines one client audit.
 
 ### Primary Key
 
-- `audit_id`: unique operator-generated identifier.
+- `audit_id`
 
 ### Fields
 
@@ -147,52 +162,53 @@ Defines one client audit.
 | --- | --- | --- |
 | `audit_id` | string | Unique audit identifier. |
 | `client_name` | string | Client display name. |
-| `client_email` | string | Client address for delivery and post-retention CSV. |
+| `client_email` | string | Delivery and retention email recipient. |
 | `environment` | enum | `production`, `staging`, `development`, or `other`. |
-| `production_waiver_reference` | string/null | Required for production. Reference only; not the waiver contents. |
+| `production_waiver_reference` | string/null | Required for production. Reference only. |
 | `internal_approval_reference` | string/null | Required for production. Reference only. |
-| `endpoints` | list[`AuditEndpoint`] | Up to 10 unique endpoint definitions. |
+| `endpoints` | list[`AuditEndpoint`] | Up to 10 unique enabled endpoint definitions. |
 | `auth` | `BearerAuthConfig`/null | Bearer auth reference. |
+| `scan_pack_id` | string | Default and MVP value: `core_reliability_scan`. |
 | `schedule_duration_hours` | integer | Default `48`. |
-| `checks_per_day` | integer | Default `5`. |
-| `expected_check_cycles` | integer | Default `10`. |
-| `check_frequency_agreement_reference` | string/null | Required when `checks_per_day` exceeds default `5`; reference only, not customer-facing. |
-| `privacy_policy` | `PrivacyPolicy` | Raw-data and retention policy. |
-| `resilience_burst_requested` | boolean | Whether optional add-on was requested. |
-| `resilience_burst_approval_reference` | string/null | Required before any optional resilience/burst execution. |
-| `report_artifact_prefix` | string | Private S3 prefix for artifacts. |
+| `checks_per_day` | integer | Default `5`, allowed `1..24`. |
+| `expected_check_cycles` | integer | Derived from duration/frequency; default approximately `10`. |
+| `check_frequency_agreement_reference` | string/null | Required when `checks_per_day > 5`. |
+| `privacy_policy` | `PrivacyPolicy` | Raw-data and retention posture. |
+| `optional_resilience_requested` | boolean | False for standard bounded `burst_stability`; true only for separately approved add-ons. |
+| `optional_resilience_approval_reference` | string/null | Required only for out-of-scope optional add-ons, not for standard bounded `burst_stability`. |
+| `report_artifact_prefix` | string | Private S3 artifact prefix. |
 | `retention` | `RetentionPolicy` | 90-day metadata retention and post-retention delivery settings. |
 | `created_at` | datetime | Creation timestamp. |
 
 ### Ownership Model
 
-Scoped to one client audit. Operators may access under internal procedures. Customer-facing outputs exclude secrets and raw data.
+Scoped to one client audit; operator-owned. Customer-facing outputs exclude secrets and raw data.
 
 ### Lifecycle
 
-Created during manual intake, validated before execution, used for execution/reporting/delivery/retention, then retained according to policy. Secret values should be runtime-only or stored in an operator-managed secret store, not serialized into reports/CSV.
+Created during manual intake, validated before execution, used for runtime/report/delivery/retention, retained according to policy.
 
 ## AuditEndpoint
 
 ### Purpose
 
-Defines one audited endpoint and optional latency threshold.
+Defines one endpoint and optional latency threshold.
 
 ### Primary Key
 
-- Composite identity: uppercase `method + path` within an audit.
+- `audit_id + endpoint_id`; uniqueness also enforced by uppercase `METHOD + PATH` within audit.
 
 ### Fields
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `endpoint_id` | string | Stable row/report identifier. |
-| `method` | enum/string | HTTP method; normalized uppercase. |
+| `endpoint_id` | string | Stable sanitized identifier used in reports/anchors/CSV. |
+| `method` | string | HTTP method normalized uppercase. |
 | `path` | string | Endpoint path. |
-| `base_url` | string | Target base URL. |
-| `expected_latency_ms` | integer/null | Optional threshold. Null means observed-only reporting. |
-| `enabled` | boolean | Included in audit when true. |
-| `notes` | string/null | Operator-only, must not include secrets. |
+| `base_url` | string | Target base URL; report may show environment/domain only if privacy-approved. |
+| `expected_latency_ms` | integer/null | Optional latency threshold. Null means observed-only. |
+| `enabled` | boolean | Included when true. |
+| `notes` | string/null | Operator-only; must not include secrets. |
 
 ### Ownership Model
 
@@ -200,40 +216,40 @@ Scoped to one `AuditConfig`.
 
 ### Lifecycle
 
-Created during intake. Changes after execution starts require operator notation and re-validation.
+Created before execution; changes after execution starts require re-validation and operator notation.
 
 ## BearerAuthConfig
 
 ### Purpose
 
-Defines how bearer token auth is provided to runtime checks without exposing token values.
+Defines how bearer auth is supplied at runtime without exposing token values.
 
 ### Primary Key
 
-- Associated with `audit_id` or an operator-managed secret reference.
+- Associated with `audit_id` or operator-managed secret source.
 
 ### Fields
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `auth_type` | enum | Must be `bearer_token` for MVP standard support. |
-| `token_secret_reference` | string | Runtime env var name or secret-store reference; never rendered in customer artifacts. |
-| `header_name` | string | Default `Authorization`. |
+| `auth_type` | enum | `bearer_token`. |
+| `token_secret_reference` | string | Runtime env var or secret-store reference; never included in customer-facing artifacts. |
+| `header_name` | string | Default `Authorization`; not rendered with value. |
 | `token_prefix` | string | Default `Bearer`. |
 
 ### Ownership Model
 
-Sensitive operator-held credential scoped to the audit.
+Sensitive operator-held credential metadata.
 
 ### Lifecycle
 
-Provided during intake, used during execution, excluded from reports/CSV/logs, rotated/revoked per client agreement.
+Used only to inject runtime auth; token values are never serialized.
 
 ## PrivacyPolicy
 
 ### Purpose
 
-Captures audit-specific privacy and raw-data exception posture.
+Captures privacy and raw-data exception posture.
 
 ### Fields
 
@@ -242,11 +258,11 @@ Captures audit-specific privacy and raw-data exception posture.
 | `store_raw_bodies` | boolean | Default `false`; true only with written exception. |
 | `store_raw_headers` | boolean | Default `false`; true only with written exception. |
 | `store_trace_logs` | boolean | Default `false`; true only with written exception. |
-| `collect_raw_logs`, `include_raw_logs`, `persist_raw_logs` | boolean | Default `false`; true only with explicit client request and written approval/reference. |
-| `collect_raw_responses`, `include_raw_responses`, `persist_raw_responses` | boolean | Default `false`; true only with explicit client request and written approval/reference. |
-| `collect_stack_traces`, `include_stack_traces`, `persist_stack_traces` | boolean | Default `false`; true only with explicit client request and written approval/reference. |
-| `raw_data_exception_reference` | string/null | Required if any raw storage flag is true. |
-| `raw_data_written_demand_reference` | string/null | Required if any raw diagnostic artifact collection, inclusion, or persistence flag is true. |
+| `collect_raw_logs` / `include_raw_logs` / `persist_raw_logs` | boolean | Default `false`; true only with explicit client demand and approval. |
+| `collect_raw_responses` / `include_raw_responses` / `persist_raw_responses` | boolean | Default `false`; true only with explicit client demand and approval. |
+| `collect_stack_traces` / `include_stack_traces` / `persist_stack_traces` | boolean | Default `false`; true only with explicit client demand and approval. |
+| `raw_data_exception_reference` | string/null | Required if any raw storage/inclusion flag is true. |
+| `raw_data_written_demand_reference` | string/null | Required if raw diagnostic collection/display/persistence is requested. |
 | `sanitized_metadata_retention_days` | integer | Must be `90`. |
 
 ### Ownership Model
@@ -255,61 +271,344 @@ Scoped per audit.
 
 ### Lifecycle
 
-Created before execution; raw-data flags fail closed unless explicit client request and written approval/reference exist.
+Validated pre-run; raw-data flags fail closed without approval references.
 
-## AuditResult / EndpointAuditResult
+## ScanPackExecutionPlan
 
 ### Purpose
 
-Stores sanitized observations and report artifact references.
+Runtime plan derived from `scan_packs.py` and `scenario_registry.py`; prevents drift between configured scan pack, runtime, report, and CSV.
 
 ### Primary Key
 
-- `AuditResult`: `audit_id` plus generated run/result identifier.
-- `EndpointAuditResult`: `audit_id + check_cycle_id + endpoint_id + timestamp`.
+- `audit_id + scan_pack_id + generated_at`
 
 ### Fields
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `audit_id` | string | Parent audit. |
-| `check_cycle_id` | string/integer | Cycle identifier. |
+| `scan_pack_id` | string | `core_reliability_scan` for MVP. |
+| `scan_pack_name` | string | Display name from scan pack. |
+| `scan_pack_description` | string | Description from scan pack. |
+| `scenario_count` | integer | Count of resolved scenario IDs. |
+| `scenarios` | list[`ScenarioRuntimeDefinition`] | Ordered scenario definitions. |
+| `generated_at` | datetime | Plan creation time. |
+
+### Ownership Model
+
+Scoped to one audit run.
+
+### Lifecycle
+
+Generated after config validation; stored/snapshotted with sanitized result metadata for report reproducibility.
+
+## ScenarioRuntimeDefinition
+
+### Purpose
+
+Serializable safe scenario metadata used by runtime and reporting.
+
+### Primary Key
+
+- `scan_pack_id + scenario_id`
+
+### Fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scenario_id` | string | Registry scenario ID. |
+| `scenario_name` | string | Human label. |
+| `category` | string | Scenario category. |
+| `rationale` | string | Safe description/purpose from registry or approved copy. |
+| `severity_if_failed` | enum | `high`, `medium`, `low`, `info`. |
+| `remediation` | string | Approved generic remediation guidance. |
+| `execution_type` | enum | `single`, `sequential_repeated`, `bounded_burst`, `negative_validation`, `auth_negative`, `timeout`, `consistency`. |
+| `is_standard_mvp` | boolean | True for all scenarios in `core_reliability_scan`. |
+
+### Ownership Model
+
+Public-safe metadata. Must not include endpoint-specific raw data or secrets.
+
+### Lifecycle
+
+Resolved at runtime; used for every endpoint's expected scenario rows.
+
+## CheckCycleResult
+
+### Purpose
+
+Captures one scheduled cycle's endpoint-level sanitized observations.
+
+### Primary Key
+
+- `audit_id + check_cycle_id + endpoint_id + timestamp`
+
+### Fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `audit_id` | string | Parent audit. |
+| `check_cycle_id` | string | Cycle identifier. |
 | `endpoint_id` | string | Endpoint identifier. |
 | `method` | string | HTTP method. |
 | `path` | string | Endpoint path. |
 | `timestamp` | datetime | Observation time. |
 | `status_code` | integer/null | HTTP status if available. |
-| `available` | boolean | Availability result. |
+| `available` | boolean/null | Availability result where measured. |
 | `latency_ms` | integer/float/null | Observed latency. |
-| `expected_latency_ms` | integer/null | Threshold if provided. |
-| `latency_status` | enum/null | `pass`/`fail` only when threshold exists; otherwise blank/`observed_only`. |
+| `expected_latency_ms` | integer/null | Configured threshold. |
+| `latency_status` | enum | `pass`, `fail`, `observed_only`, or `not_measured`. |
 | `error_category` | string/null | Sanitized category. |
-| `error_summary` | string/null | Sanitized non-sensitive summary. |
-| `report_html_s3_key` | string/null | Private S3 key, result-level only. |
-| `csv_s3_key` | string/null | Private S3 key, result-level only. |
+| `error_summary` | string/null | Sanitized summary; no raw body/header/trace. |
+
+### Ownership Model
+
+Scoped to client audit and exportable only as sanitized metadata.
+
+### Lifecycle
+
+Created during execution, retained for 90 days, used in report/CSV/rollups.
+
+## EndpointScanResult
+
+### Purpose
+
+Captures one scenario result for one endpoint. This is the core contract for the redesigned report's scan-pack matrix and test-level details.
+
+### Primary Key
+
+- `audit_id + endpoint_id + scan_pack_id + scenario_id + check_cycle_id/null`
+
+### Fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `audit_id` | string | Parent audit. |
+| `check_cycle_id` | string/null | Cycle ID when scenario ran per cycle; null allowed for aggregate-only scenario result. |
+| `endpoint_id` | string | Endpoint identifier. |
+| `method` | string | HTTP method. |
+| `path` | string | Endpoint path. |
+| `scan_pack_id` | string | `core_reliability_scan`. |
+| `scan_pack_name` | string | Display name. |
+| `scenario_id` | string | Scenario ID. |
+| `scenario_name` | string | Human label. |
+| `category` | string | Scenario category. |
+| `severity_if_failed` | enum | `high`, `medium`, `low`, `info`. |
+| `status` | enum | `pass`, `fail`, `warning`, `not_run`, `not_applicable`, `incomplete`. |
+| `rationale` | string | Safe scenario purpose. |
+| `expected_behavior` | string/null | Safe expected behavior summary. |
+| `observed_behavior` | string/null | Sanitized observed behavior summary only. |
+| `evidence_summary` | string/null | Sanitized evidence. No raw bodies, headers, tokens, logs, traces, stack traces, or secret references. |
+| `remediation` | string/null | Approved safe remediation guidance. |
+| `not_run_reason` | string/null | Required when status is `not_run` or `incomplete` due to skipped execution. |
+| `not_applicable_reason` | string/null | Required when status is `not_applicable`. |
+| `observed_at` | datetime/null | Last observation time. |
+| `affected_cycle_ids` | list[string] | Cycle IDs contributing to result. |
+| `sample_count` | integer | Number of sanitized observations used. |
+| `raw_data_included` | boolean | Default `false`; true only under approved exception. |
+| `raw_data_exception_reference` | string/null | Approval reference if raw data exception exists; should not expose secret locations. |
+
+### Ownership Model
+
+Scoped to one audit and endpoint. Customer/export safe only after privacy validation.
+
+### Lifecycle
+
+Created during each cycle or aggregation step. Persisted as sanitized metadata, rendered in report, exported to scan-results CSV, retained for 90 days.
+
+## BurstStabilityExecutionGuardrails
+
+### Purpose
+
+Defines the hard bounds that keep `burst_stability` a standard reliability check rather than load testing.
+
+### Primary Key
+
+- `audit_id + endpoint_id + check_cycle_id + scenario_id=burst_stability`
+
+### Fields / Constants
+
+| Field | Value / Type | Description |
+| --- | --- | --- |
+| `max_concurrent_requests` | `3` | Maximum in-flight requests for the burst scenario per endpoint. |
+| `max_total_requests` | `5` | Maximum requests issued by the burst scenario per endpoint per cycle. |
+| `max_burst_duration_seconds` | `10` | Hard wall-clock cap for the scenario per endpoint. |
+| `endpoint_execution_order` | enum | Default `sequential_across_endpoints`; do not burst multiple endpoints simultaneously by default. |
+| `retry_policy` | enum | `no_extra_retries`; do not retry failed burst requests unless retry is part of the generic client timeout behavior and recorded. |
+| `ramp_up` | enum | `none`; fixed small bounded group only. |
+| `sustained_duration` | integer | `0`; no soak/sustained load period. |
+| `allowed_methods` | policy | Use the configured safe endpoint method only; do not invent destructive payloads. |
+| `stop_on_safety_signal` | boolean | True; stop scenario if safety/authorization/timeout guardrail is hit. |
+
+### Ownership Model
+
+Internal runtime safety metadata; report may summarize as `bounded check: max 5 requests, max concurrency 3, no sustained load`.
+
+### Lifecycle
+
+Applied every time `burst_stability` runs. Any implementation change increasing these bounds requires product/architecture approval.
+
+### Difference From Load Testing
+
+`burst_stability` verifies whether a single endpoint tolerates a very small, short-lived, fixed concurrent request group without obvious instability. It does **not** measure capacity, throughput, saturation, scaling limits, sustained concurrency, maximum RPS, soak behavior, stress limits, or degradation curves. It has no ramp-up, no duration-based target rate, no cross-endpoint concurrency, no autoscaling objective, and no operator-tunable workload expansion in the standard MVP.
+
+## EndpointAuditSummary
+
+### Purpose
+
+Endpoint-level rollup for scorecards and detail headers.
+
+### Primary Key
+
+- `audit_id + endpoint_id`
+
+### Fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `endpoint_id` | string | Endpoint identifier. |
+| `method` | string | HTTP method. |
+| `path` | string | Endpoint path. |
+| `availability_percent` | float/null | Computed from endpoint-cycle results. |
+| `latency_summary_ms` | object/null | `{min, median, p95, max}` when measurable. |
+| `expected_latency_ms` | integer/null | Threshold when configured. |
+| `latency_status` | enum | `pass`, `fail`, `observed_only`, `not_measured`. |
+| `scan_total_count` | integer | Expected scenario count from resolved scan pack. |
+| `scan_pass_count` | integer | Number of pass results. |
+| `scan_fail_count` | integer | Number of fail results. |
+| `scan_warning_count` | integer | Number of warning results. |
+| `scan_not_run_count` | integer | Number of not-run/incomplete results. |
+| `scan_not_applicable_count` | integer | Number of not-applicable results. |
+| `high_severity_failure_count` | integer | Failed high-severity scenarios. |
+| `score` | integer/null | 0-100 deterministic endpoint score; null if insufficient data. |
+| `verdict` | enum | `healthy`, `needs_attention`, `high_risk`, `incomplete`. |
+| `top_issue` | string/null | Safe summary for scorecard. |
+
+### Ownership Model
+
+Computed from sanitized results.
+
+### Lifecycle
+
+Generated during report view-model assembly; may be persisted as derived sanitized metadata for retention/report reproducibility.
+
+## Finding
+
+### Purpose
+
+Prioritized action item for executive summary.
+
+### Primary Key
+
+- `audit_id + finding_id`
+
+### Fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `finding_id` | string | Deterministic sanitized ID. |
+| `severity` | enum | `high`, `medium`, `low`, `info`. |
+| `status` | enum | `open`, `observed`, `incomplete`. |
+| `endpoint_id` | string/null | Affected endpoint, null for audit-wide issue. |
+| `method` | string/null | HTTP method. |
+| `path` | string/null | Endpoint path. |
+| `scenario_id` | string/null | Related scenario. |
+| `title` | string | Safe concise finding title. |
+| `evidence_summary` | string | Sanitized evidence. |
+| `remediation` | string | Recommended next step. |
+| `sort_rank` | integer | Precomputed priority order. |
+
+### Ownership Model
+
+Computed from sanitized results only.
+
+### Lifecycle
+
+Generated during report view-model assembly and exported only if fields pass privacy gates.
+
+## AuditResult
+
+### Purpose
+
+Top-level result bundle for report/export/delivery/retention.
+
+### Primary Key
+
+- `audit_id + result_id`
+
+### Fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `audit_id` | string | Parent audit. |
+| `result_id` | string | Generated result ID. |
+| `scan_pack_id` | string | `core_reliability_scan`. |
+| `scan_pack_name` | string | Display name. |
+| `scan_pack_description` | string | Description. |
+| `scan_pack_scenario_count` | integer | Scenario count. |
+| `check_cycle_results` | list[`CheckCycleResult`] | Sanitized endpoint-cycle observations. |
+| `scan_results` | list[`EndpointScanResult`] | Sanitized scenario results. |
+| `endpoint_summaries` | list[`EndpointAuditSummary`] | Computed endpoint rollups. |
+| `findings` | list[`Finding`] | Prioritized sanitized findings. |
+| `overall_score` | integer/null | 0-100 deterministic audit score; null if insufficient data. |
+| `overall_verdict` | enum | `ready_with_minor_observations`, `needs_attention`, `high_risk_reliability_concerns`, `incomplete_audit_data`. |
+| `verdict_rationale` | string | Human-readable sanitized explanation. |
+| `generated_at` | datetime | Report generation time. |
+| `report_html_s3_key` | string/null | Private S3 key. |
+| `endpoint_cycle_csv_s3_key` | string/null | Private S3 key. |
+| `scan_results_csv_s3_key` | string/null | Private S3 key. |
 | `retention_expires_at` | datetime | 90-day expiry. |
 
 ### Ownership Model
 
-Scoped to client audit and exportable only if sanitized.
+Scoped to client audit; exportable only through private channels.
 
 ### Lifecycle
 
-Created per check, included in report/CSV, retained for 90 days, then exported through retention workflow.
+Created after execution/aggregation, delivered privately, retained for 90 days, then used for post-retention CSV export.
 
-## CSV Export Contract
+## Verdict and Score Contract
 
 ### Purpose
 
-Defines both initial and post-retention sanitized CSV exports.
+Defines deterministic rollup behavior.
 
-### Fields / Columns
+### Rules
 
-`audit_id`, `check_cycle_id`, `endpoint_id`, `method`, `path`, `timestamp`, `status_code`, `available`, `latency_ms`, `expected_latency_ms`, `latency_status`, `error_category`, `error_summary`.
+- If no endpoint results or required scan-pack data is missing for all endpoints: `overall_score = null`, `overall_verdict = incomplete_audit_data`.
+- Start each endpoint score at `100` when at least one required scan result exists.
+- Subtract `25` for each failed high-severity scenario, `15` for each failed medium-severity scenario, `5` for each warning, and `10` for each required `not_run`/`incomplete` scenario without acceptable rationale.
+- Floor endpoint score at `0`.
+- Endpoint verdict:
+  - `high_risk` if any high-severity scenario fails or score `< 70`.
+  - `needs_attention` if any medium failure/warning/not-run required scenario exists or score `< 90`.
+  - `healthy` if score `>= 90` with no failed required scenarios.
+  - `incomplete` if insufficient scan data prevents scoring.
+- Overall score is the rounded mean of scorable endpoint scores; null if none are scorable.
+- Overall verdict:
+  - `high_risk_reliability_concerns` if any endpoint is `high_risk` or any high-severity finding is open.
+  - `needs_attention` if any endpoint is `needs_attention` or required data is partially incomplete.
+  - `ready_with_minor_observations` if all scorable endpoints are healthy and no high/medium failures exist.
+  - `incomplete_audit_data` if no scorable endpoint data exists or expected scan-pack rows are absent.
 
-### Explicitly Excluded
+## CSV Export Contracts
 
-Bearer tokens, authorization headers, raw request/response bodies, raw headers, trace logs, stack traces containing request details, unredacted payloads, and secret references that reveal credential location.
+### Endpoint-Cycle CSV
+
+Columns:
+
+`audit_id`, `check_cycle_id`, `endpoint_id`, `method`, `path`, `timestamp`, `status_code`, `available`, `latency_ms`, `expected_latency_ms`, `latency_status`, `error_category`, `error_summary`
+
+### Scan-Results CSV
+
+Columns:
+
+`audit_id`, `check_cycle_id`, `endpoint_id`, `method`, `path`, `scan_pack_id`, `scenario_id`, `scenario_name`, `category`, `severity_if_failed`, `status`, `rationale`, `evidence_summary`, `remediation`, `observed_at`, `affected_cycle_ids`, `sample_count`, `not_run_reason`, `not_applicable_reason`, `raw_data_included`
+
+### Explicitly Excluded From All CSVs
+
+Bearer tokens, authorization header values, raw request bodies, raw response bodies, raw headers, raw responses, raw logs, trace logs, stack traces, unredacted payloads, SMTP credentials, and secret references that reveal credential locations.
 
 ## RetentionRecord
 
@@ -319,258 +618,207 @@ Tracks 90-day retention state and post-retention CSV email automation.
 
 ### Primary Key
 
-- `audit_id` plus `retention_expires_at`.
+- `audit_id + retention_expires_at`
 
 ### Fields
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `audit_id` | string | Parent audit. |
-| `client_email` | string | Recipient for post-retention CSV. |
+| `client_email` | string | Recipient. |
 | `metadata_location` | string | Sanitized metadata location only. |
 | `retention_started_at` | datetime | Usually audit completion time. |
 | `retention_expires_at` | datetime | `retention_started_at + 90 days`. |
-| `export_csv_path_or_key` | string/null | Generated sanitized post-retention CSV location. |
+| `export_csv_path_or_key` | string/null | Sanitized post-retention CSV location. |
 | `delivery_mode` | enum | `attachment` or `presigned_s3_link`. |
 | `delivery_status` | enum | `pending`, `sent`, `failed`, `retry_pending`. |
 | `last_attempt_at` | datetime/null | Last SMTP attempt. |
 | `last_error_category` | string/null | Sanitized failure category. |
-| `attempt_count` | integer | Number of SMTP attempts. |
+| `attempt_count` | integer | SMTP attempt count. |
 
 ### Ownership Model
 
-Operator-owned operational metadata scoped to a client audit. Must not contain SMTP password, bearer token, raw API data, or message bodies containing secrets.
+Operator-owned operational metadata; no secrets or raw API data.
 
 ### Lifecycle
 
-Created when audit completes. Processed when retention expires. Marked `sent` after SMTP success or `failed`/`retry_pending` after sanitized failure. Source metadata deletion/archive after successful export remains an open operational decision unless separately confirmed.
-
-## SmtpDeliveryConfig
-
-### Purpose
-
-Defines environment-variable based SMTP configuration for automated post-retention CSV delivery.
-
-### Environment Variable Contract
-
-| Environment Variable | Required | Description |
-| --- | --- | --- |
-| `RELIABILITYKIT_SMTP_HOST` | yes | SMTP server hostname. |
-| `RELIABILITYKIT_SMTP_PORT` | yes | SMTP server port, integer. |
-| `RELIABILITYKIT_SMTP_USERNAME` | conditional | SMTP username when server requires authentication. |
-| `RELIABILITYKIT_SMTP_PASSWORD` | conditional | SMTP password/app password; secret; never logged. |
-| `RELIABILITYKIT_SMTP_FROM_EMAIL` | yes | Sender address for retention emails. |
-| `RELIABILITYKIT_SMTP_FROM_NAME` | no | Display name; default may be product/service name. |
-| `RELIABILITYKIT_SMTP_USE_TLS` | yes | `true`/`false` for STARTTLS. |
-| `RELIABILITYKIT_SMTP_USE_SSL` | yes | `true`/`false` for implicit SSL. Must not conflict with TLS. |
-| `RELIABILITYKIT_SMTP_TIMEOUT_SECONDS` | no | SMTP connect/send timeout. |
-| `RELIABILITYKIT_RETENTION_FAILURE_NOTIFY_EMAIL` | yes | Operator/remediation recipient for delivery failures. |
-| `RELIABILITYKIT_RETENTION_MAX_ATTACHMENT_MB` | no | Attachment size threshold; above it use private S3 presigned link. |
-
-### Validation Rules
-
-- Missing required SMTP variables must fail the retention email attempt and surface operator remediation.
-- `RELIABILITYKIT_SMTP_PORT` and timeout/size values must parse as positive numbers.
-- `RELIABILITYKIT_SMTP_USE_TLS` and `RELIABILITYKIT_SMTP_USE_SSL` must not both be true.
-- Authentication credentials must be required only when the chosen SMTP server needs auth; if provided, they are secret values and must be redacted from logs/exceptions.
+Created at audit completion; processed when retention expires; retryable on sanitized failure.
 
 ## 8. API Contracts
 
-No public or customer-facing backend API contracts are in MVP scope. The landing page must not call backend services. Audit operations are CLI/local workflow and external integrations.
+No public or customer-facing backend API contracts are in MVP scope. The landing page and static report must not call backend services.
 
 ### External Integration Contract: Private S3 Presigned Report Delivery
 
 #### Purpose
 
-Privately deliver initial HTML report/dashboard and sanitized CSV artifacts.
+Privately deliver static HTML report and sanitized CSV artifacts.
 
 #### Authentication / Authorization
 
-- Operator/automation uses AWS credentials with least-privilege permissions for private object upload and presigned URL generation.
-- Client access is limited to presigned URL validity.
+Operator/automation uses least-privilege AWS credentials. Client access is limited to presigned URL validity.
 
 #### Inputs
 
-- Local sanitized artifact paths.
-- Private S3 bucket.
-- Object keys under audit-specific prefix.
+- Local sanitized HTML report path.
+- Local endpoint-cycle CSV path.
+- Local scan-results CSV path.
+- Private S3 bucket and audit-specific object keys.
 - Presigned URL expiration duration.
 
 #### Outputs
 
 - Time-limited presigned URL for HTML report.
-- Time-limited presigned URL for sanitized CSV.
+- Time-limited presigned URL for endpoint-cycle CSV.
+- Time-limited presigned URL for scan-results CSV.
 
 #### Error Conditions
 
-Missing artifact, upload failure, missing/invalid AWS credentials, insufficient IAM permission, presign failure, expired URL.
+Missing artifact, upload failure, invalid AWS credentials, insufficient IAM permission, public ACL attempt, presign failure, expired URL.
 
 #### Side Effects
 
-Writes private S3 objects and produces URLs for delivery.
+Writes private S3 objects and produces URLs.
 
 #### Idempotency / Duplicate Handling
 
-Prefer immutable object keys with `audit_id` and generated timestamp. Re-upload to same key only when operator intentionally regenerates a final artifact.
+Prefer immutable keys containing `audit_id` and generation timestamp. Re-upload same key only for intentional operator regeneration.
 
 ### External Integration Contract: Post-Retention CSV SMTP Email
 
 #### Purpose
 
-Automatically email the sanitized post-retention CSV to the client after 90-day retention expires.
+Automatically email sanitized post-retention CSV artifacts after 90-day retention expires.
 
 #### Authentication / Authorization
 
-- SMTP credentials come only from environment variables.
-- SMTP password and username are operator/system secrets and must not appear in customer artifacts, CSV, logs, tracebacks, or failure notifications.
+SMTP credentials come only from `RELIABILITYKIT_*` environment variables and must be redacted from all outputs.
 
 #### Inputs
 
-- `RetentionRecord` with expired `retention_expires_at`.
-- Sanitized metadata for the audit.
-- Client recipient email from `AuditConfig`/`RetentionRecord`.
-- SMTP config from `RELIABILITYKIT_*` environment variables.
+- Expired `RetentionRecord`.
+- Retained sanitized endpoint-cycle and scan-result metadata.
+- Client recipient email.
+- SMTP config from environment variables.
 
-#### Request / Message Contract
+#### Message Contract
 
 - Recipient: `client_email`.
-- Sender: `RELIABILITYKIT_SMTP_FROM_EMAIL` and optional `RELIABILITYKIT_SMTP_FROM_NAME`.
-- Subject: must identify the audit and state that the sanitized retention CSV is attached or linked; must not include secrets.
-- Body: concise operator-approved text; must not include raw API data, bearer token values, SMTP config, stack traces, or internal secret references.
-- Payload: sanitized CSV only, either attached or linked through private S3 presigned URL.
-
-#### CSV Attachment or Link Behavior
-
-- Default delivery mode should be direct CSV attachment when generated CSV size is at or below `RELIABILITYKIT_RETENTION_MAX_ATTACHMENT_MB` or implementation default.
-- If CSV exceeds the configured threshold, or if SMTP provider attachment limits are likely to reject it, upload the sanitized CSV to private S3 and email a time-limited presigned URL instead of attaching the file.
-- Whether attached or linked, the CSV content must use the same sanitized CSV export contract and must exclude bearer tokens, authorization headers, raw bodies, raw headers, and traces.
-- Presigned-link mode must use private S3 objects; public links are prohibited.
+- Sender: `RELIABILITYKIT_SMTP_FROM_EMAIL` and optional display name.
+- Subject/body: identify audit and sanitized export only; no secrets, raw data, or stack traces.
+- Payload: sanitized CSV attachment(s) or private S3 presigned link(s) depending on size.
 
 #### Success Status
 
-- Mark `RetentionRecord.delivery_status = sent` only after SMTP send succeeds.
+Mark `RetentionRecord.delivery_status = sent` only after SMTP send succeeds.
 
 #### Error Status / Failure Conditions
 
-- Missing or invalid SMTP config.
-- SMTP connection timeout.
-- Authentication failure.
-- Recipient rejection.
-- Attachment size rejection.
-- S3 upload/presign failure in link mode.
-- Unexpected send error.
-
-#### Failure Surfacing / Logging
-
-- Failures must not silently succeed.
-- Log/surface audit ID, recipient domain or redacted recipient, delivery mode, sanitized error category, and remediation hint.
-- Do not log SMTP password, full SMTP URL with credentials, bearer token, raw API data, CSV contents, stack traces containing secrets, or full environment dumps.
-- Notify or expose failure to `RELIABILITYKIT_RETENTION_FAILURE_NOTIFY_EMAIL` when configured; that notification must contain sanitized diagnostic information only.
-- Failed delivery should remain retryable with status `failed` or `retry_pending` and `attempt_count` incremented.
+Missing SMTP config, authentication failure, connection timeout, recipient rejection, attachment-size rejection, S3 upload/presign failure, unexpected send error.
 
 #### Idempotency / Duplicate Handling
 
-- Re-running retention processing for an already `sent` record must not resend unless an explicit operator override is provided.
-- Re-running for `failed`/`retry_pending` records may retry using the same sanitized CSV or regenerate it deterministically from retained sanitized metadata.
+Do not resend already `sent` records without explicit operator override. Failed/retry-pending records may retry with sanitized state.
 
 ## 9. Frontend Impact
 
 ### Components Affected
 
-- New/static Phase 1 product landing page.
+- Static product landing page.
 - Generated static HTML audit report/dashboard.
 
 ### API Integration
 
 - Landing page: none.
-- Report/dashboard: no backend API. CSV is a static artifact link/download from private S3 presigned URL or relative artifact link before upload.
+- Report: none. CSV links point to local files or private presigned URLs.
 
 ### UI States
 
-#### Landing Page
-
-- Static informational state only.
-- Required sections: hero, problem/value proposition, what is included, privacy/safety guarantees, pricing, how it works, FAQ, CTA.
-- CTA text exactly `Request a Reliability Audit`.
-- CTA href exactly `#request-audit`.
-- No loading, authenticated, payment, form-submission, email-submission, or lead-capture state.
-
 #### HTML Report/Dashboard
 
-- Completed audit summary.
-- Endpoint-level availability/status/latency tables.
-- Observed-only latency state when thresholds are absent.
-- Threshold pass/fail labels only when expected thresholds exist.
-- Sanitized CSV access.
-- No bearer tokens, raw bodies, raw headers, or traces.
+- Completed audit summary with one `h1` and safe wrapping for long IDs/timestamps.
+- Executive verdict: `Ready with minor observations`, `Needs attention`, `High-risk reliability concerns`, or `Incomplete audit data`.
+- KPI cards: endpoints audited, scan-pack tests, availability, latency, completed cycles, high-severity failures.
+- Key findings/action items, or explicit empty state.
+- Endpoint scorecards.
+- Per-endpoint scan-pack matrix showing every scenario from `core_reliability_scan`, including `Burst Stability`.
+- Test-level details with status, severity, rationale, sanitized evidence, remediation, and privacy note.
+- Latency/availability summaries with observed-only labeling when thresholds are absent.
+- CSV/export section with links to sanitized metadata only.
+- Methodology/scope/privacy notes including bounded `burst_stability` explanation.
+- Missing data states: `Not run`, `Not applicable`, `Incomplete`, or explicit scan-pack missing-data alert; never blank.
 
 ## 10. Backend Logic
 
 ### Responsibilities
 
-- Validate audit configuration before execution.
-- Enforce endpoint cap and uniqueness.
-- Enforce production authorization and optional resilience/burst approval gates.
-- Execute bounded scheduled checks through operator-run/local tooling.
-- Derive and persist sanitized metadata only.
-- Generate static HTML and sanitized CSV artifacts.
-- Upload artifacts to private S3 and generate presigned URLs.
-- Track 90-day retention and automatically email post-retention sanitized CSV via SMTP.
+- Validate audit configuration and approval gates.
+- Resolve `core_reliability_scan` from `scan_packs.py`.
+- Execute or explicitly record every scenario for every endpoint.
+- Enforce bounded `burst_stability` guardrails.
+- Convert observations to sanitized result contracts.
+- Compute endpoint summaries, findings, scores, verdicts, and CSV/report view models.
+- Generate static HTML and CSV artifacts from sanitized data only.
+- Upload artifacts privately and manage retention email automation.
 
 ### Validation Flow
 
 1. Load `AuditConfig`.
 2. Normalize endpoint identity as uppercase `METHOD + PATH`.
-3. Reject more than 10 unique identities.
-4. Reject duplicates unless de-duplicated before execution.
-5. If `environment = production`, require `production_waiver_reference` and `internal_approval_reference`.
-6. If resilience/burst execution is requested, require `resilience_burst_approval_reference`; otherwise keep it out of the standard run path.
-7. Validate bearer token is referenced as sensitive runtime input/secret reference and is not serialized into output models.
-8. Validate privacy policy: raw bodies, raw headers, traces, raw logs, raw responses, and stack traces default false; any collection, inclusion/display, or persistence flag requires explicit client request and written approval/reference.
-9. Validate report delivery bucket/key configuration is private/presigned only.
-10. Validate retention email SMTP config before attempting post-retention send.
+3. Reject more than 10 unique enabled endpoints.
+4. Reject duplicate endpoint identities unless de-duplicated before execution.
+5. If production, require `production_waiver_reference` and `internal_approval_reference`.
+6. Validate `scan_pack_id`; MVP default is `core_reliability_scan`.
+7. Resolve scan pack and scenario definitions. Fail closed if unknown scenario IDs exist.
+8. Ensure standard run does not include unapproved scenarios outside resolved `core_reliability_scan`.
+9. Treat `burst_stability` as standard only under the hard bounds in `BurstStabilityExecutionGuardrails`; do not require optional resilience approval for this bounded scenario.
+10. Require separate approval for any non-standard resilience/burst/load/fault/chaos/destructive scenario or any attempt to raise `burst_stability` bounds.
+11. Validate bearer token reference without serializing token value.
+12. Validate privacy policy; raw-data flags require written demand and approval references.
+13. Validate S3 private delivery configuration and retention SMTP configuration before those phases.
 
 ### Business Rules
 
-- Testing fails closed when production approvals are incomplete.
-- Standard audit must not exceed 10 unique `METHOD + PATH` endpoints.
-- Default check frequency is 5/day for 48 hours; configurable frequency is bounded to 1-24/day, values above 5/day require an operator/client agreement reference, and expected cycles must match the configured frequency over 48 hours.
-- Latency pass/fail labels require client thresholds.
-- CSV exports contain sanitized metadata only.
-- Reports use private S3 presigned delivery only.
-- Post-retention CSV delivery is automated through environment-variable SMTP configuration.
+- Every enabled endpoint must produce one row per resolved scan-pack scenario in the final report model.
+- If a scenario cannot run safely, write `not_run` or `not_applicable` with rationale; do not omit it.
+- `burst_stability` must use max 5 total requests, max concurrency 3, max 10 seconds per endpoint per cycle, no ramp, no sustained duration, no cross-endpoint simultaneous burst, and no extra retries.
+- Latency pass/fail labels require `expected_latency_ms`; otherwise report `observed_only`.
+- Negative validation/auth scenarios must avoid destructive payloads and must not expose raw request/response content.
+- CSV and HTML generation must use sanitized models only.
 
 ### Persistence Flow
 
-- During execution, write only sanitized metadata.
-- Raw logs, raw responses, raw response bodies, raw headers, traces, and stack traces are discarded after deriving allowed fields by default and are not included in reports, CSV exports, local persisted artifacts, S3 artifacts, or retention exports.
-- Store finalized report artifacts in private S3.
-- Retain sanitized metadata for 90 days.
-- At expiry, generate sanitized CSV and deliver via SMTP as attachment or private S3 presigned link.
-- Source metadata deletion/archive after successful post-retention email remains an open question because the spec requires export/email after 90 days but does not explicitly define deletion behavior.
+- During execution, only sanitized endpoint-cycle and scan-result metadata may be written.
+- Raw logs, raw responses, bodies, headers, traces, stack traces, bearer tokens, and SMTP credentials are discarded/redacted and excluded from local workspace, S3, HTML, CSV, logs, emails, and retention exports by default.
+- Persist the resolved scan-pack snapshot so reports remain reproducible if registry text changes later.
+- Store finalized artifacts in private S3.
+- Retain sanitized metadata for 90 days, then generate sanitized post-retention CSV export(s) and deliver via SMTP.
 
 ### Error Handling
 
-- Configuration validation errors block execution with operator-actionable messages.
-- Endpoint check failures become sanitized rows where possible.
-- Network timeouts are categorized without storing traces.
-- Report generation failures block delivery.
-- S3 failures require retry/regeneration by operator/automation.
-- SMTP failures must be surfaced in sanitized logs/status and must not expose secrets.
+- Configuration validation errors block execution with operator-actionable, secret-free messages.
+- Unknown scan-pack/scenario IDs block execution.
+- Scenario runtime failures become sanitized `fail`, `warning`, or `incomplete` results depending on cause.
+- Safety guardrail violations stop the affected scenario and record `incomplete` or `not_run` with rationale.
+- Endpoint/network timeouts are categorized without storing traces.
+- Report privacy-gate failures block artifact delivery.
+- S3/SMTP failures are retryable and surfaced with sanitized diagnostics.
 
 ## 11. File Structure
 
 Implementation should extend existing repository boundaries without introducing a SaaS service:
 
 ```text
-docs/architecture/api_reliability_audit_mvp_architecture.md   # this implementation-ready design
-docs/product/api_reliability_audit_mvp_spec.md                # source product spec
-reliabilitykit/cli/                                           # operator commands for audit workflow and retention processing
-reliabilitykit/core/                                          # audit contracts, validation, execution normalization
+docs/architecture/api_reliability_audit_mvp_architecture.md   # this HITL-corrected technical design
+docs/bugs/api_reliability_audit_burst_stability_scope_correction_bug_report.md
+docs/uiux/api_reliability_audit_report_redesign_design_spec.md
+reliabilitykit/cli/                                           # operator commands
+reliabilitykit/core/scan_packs.py                             # scan-pack source of truth
+reliabilitykit/core/scenario_registry.py                      # scenario metadata source
+reliabilitykit/core/                                          # audit contracts, execution, rollups, privacy gates
 reliabilitykit/reporting/                                     # static HTML and sanitized CSV generation
-reliabilitykit/storage/                                       # local sanitized workspace, private S3, presigned URLs
-.reliabilitykit/                                              # local sanitized run/report workspace; no raw bodies/headers/traces
-<static-site-path>/                                           # static landing page location, to follow repo convention
+reliabilitykit/storage/                                       # sanitized workspace, private S3, presigned URLs
+.reliabilitykit/                                              # sanitized local workspace only
 ```
 
 ## 12. Security
@@ -578,103 +826,107 @@ reliabilitykit/storage/                                       # local sanitized 
 ### Authentication
 
 - Bearer token auth is supported first.
-- Bearer tokens are confidential secrets and should be provided through runtime environment variable, local secret store, or operator-managed secret reference.
-- SMTP credentials are confidential secrets loaded from environment variables only.
+- Token values must be supplied through runtime environment variables, local secret store, or operator-managed secret channel.
+- SMTP credentials are loaded from environment variables only.
 
 ### Authorization
 
-- Production testing requires written client waiver and completed internal approval before execution.
-- Optional resilience/burst testing requires separate written approval.
-- S3 report and retention CSV objects must be private; client access is through presigned URLs only.
+- Production execution requires client waiver and internal approval references.
+- Standard bounded `burst_stability` does not require optional resilience approval.
+- Any attempt to run broader resilience, load, fault-injection, chaos, destructive testing, or increased burst bounds requires separate written approval and is out of standard MVP scope.
+- S3 artifacts must be private and delivered only with presigned URLs.
 
 ### Input Validation
 
-- Validate endpoint count, method/path uniqueness, URL/method shape, threshold type, approval references, raw-data exception references, S3 config, and SMTP config.
+- Validate endpoint cap, method/path uniqueness, URL/method shape, latency threshold types, approval references, scan-pack IDs, scenario IDs, burst guardrails, raw-data exception references, S3 configuration, and SMTP configuration.
 
 ### Misuse Risks
 
 - Running against production without approval.
-- Leaking bearer tokens via reports, CSV, logs, CLI output, tracebacks, or emails.
-- Persisting raw response bodies/headers/traces in local workspace or S3.
-- Accidentally using public S3 ACLs or public static website delivery for reports.
-- Treating resilience/burst testing as part of the standard audit.
-- Emailing post-retention CSV to the wrong address or exposing SMTP secrets in failure handling.
+- Accidentally escalating `burst_stability` into load testing.
+- Executing unapproved chaos/fault/destructive/load scenarios.
+- Leaking tokens/secrets through report/CSV/log/error/email paths.
+- Persisting raw response data in local/S3/retention artifacts.
+- Publishing public S3 objects or permanent unauthenticated URLs.
 
 ### Required Controls
 
-- Fail-closed pre-run safety checklist.
-- Redaction checks for generated HTML, CSV, email body, and logs.
+- Fail-closed validation gates.
+- Scan-pack allowlist and scenario snapshot.
+- Hard-coded standard `burst_stability` bounds unless a future approved config model supersedes them.
+- Sanitized evidence builder and denylist checks for generated HTML/CSV/email/logs.
+- HTML escaping for all dynamic report fields.
 - Private S3 bucket policy and least-privilege IAM.
-- Environment-variable secret redaction in all errors/logs.
-- Delivery status ledger for initial report delivery and post-retention email.
 
 ## 13. Reliability
 
 ### Retries
 
-- Endpoint checks should avoid aggressive retries that distort audit measurements; any retry behavior must be visible in reporting if implemented.
-- S3 upload/presign and SMTP delivery may retry on transient failures with sanitized failure state.
-- Retention retry must not duplicate successful client emails unless explicitly overridden.
+- Endpoint checks should avoid aggressive retries that distort measurements.
+- `burst_stability` uses `no_extra_retries` in the standard scope.
+- S3 and SMTP may retry transient failures with sanitized status tracking.
+- Retention retries must not duplicate successful client emails without operator override.
 
 ### Timeouts
 
-- Endpoint request timeout default remains an implementation-time setting and should be documented in report metadata.
-- SMTP timeout should come from `RELIABILITYKIT_SMTP_TIMEOUT_SECONDS` or a safe implementation default.
+- Endpoint request timeout remains an implementation setting and must be recorded in methodology metadata.
+- `burst_stability` has a hard scenario wall-clock cap of 10 seconds per endpoint per cycle.
+- SMTP timeout should come from `RELIABILITYKIT_SMTP_TIMEOUT_SECONDS` or a safe default.
 
 ### Failure Modes
 
-- Missed scheduled cycle: record gap and surface to operator/report summary if material.
-- Partial endpoint failure: record sanitized endpoint result without aborting full cycle unless safety requires stop.
+- Missed cycle: record gap and surface in report confidence/coverage.
+- Partial endpoint failure: record sanitized result and continue other endpoints unless safety requires stopping.
+- Scenario not safely runnable: record `not_run`/`not_applicable`/`incomplete` with rationale.
 - Credential failure: classify as auth failure without token disclosure.
-- Report generation failure: block delivery until regenerated.
-- Expired S3 URL: regenerate if artifact is still authorized/available.
-- Missing SMTP config at retention expiry: mark failed/retry pending and notify/surface operator remediation without secrets.
-- SMTP send failure: sanitized failure record and retryable status.
+- Report generation privacy failure: block delivery.
+- Expired S3 URL: regenerate if artifact remains authorized/available.
+- SMTP failure: mark failed/retry-pending with sanitized diagnostics.
 
 ### Logging / Monitoring
 
-- Logs may include audit ID, cycle ID, endpoint ID, status category, delivery mode, and sanitized error category.
-- Logs must not include bearer tokens, authorization headers, raw bodies, raw headers, trace logs, SMTP password, full environment dumps, or CSV contents.
-- Maintain an operational ledger/checklist for cycle completion, report delivery, retention expiry, and retention email status.
+- Logs may include audit ID, cycle ID, endpoint ID, scenario ID, status category, delivery mode, and sanitized error category.
+- Logs must not include bearer tokens, authorization headers, raw bodies, raw headers, raw logs, traces, stack traces, SMTP passwords, full environment dumps, or CSV contents.
+- Maintain an operational ledger for cycle completion, scenario coverage, report delivery, retention expiry, and retention email status.
 
 ### Performance Considerations
 
-- Bounded workload: up to 10 endpoints x approximately 10 cycles.
-- Checks should be sequential or modestly parallel to avoid unintended load.
-- Retention CSV size is expected to be small for MVP, but attachment threshold and S3 link fallback are required for safe SMTP operation.
+- Standard workload is bounded by max 10 endpoints, approximately 10 cycles, and 8 standard scan-pack scenarios.
+- Endpoint execution should be sequential or modestly parallel; `burst_stability` must be sequential across endpoints by default.
+- The bounded burst adds at most 5 requests per endpoint per cycle and must not be used to infer capacity.
+- CSV sizes are expected to be small for MVP; retention email still needs attachment-size fallback to private S3 link.
 
 ## 14. Dependencies
 
-- Existing ReliabilityKit CLI-first execution model.
-- Existing `reliabilitykit/core`, `reporting`, and `storage` modules as implementation boundaries.
-- AWS S3 private bucket and IAM permissions for artifact upload and presigned URL generation.
-- SMTP provider credentials/configuration supplied via `RELIABILITYKIT_SMTP_*` environment variables.
+- Existing `reliabilitykit` CLI-first execution model.
+- `reliabilitykit/core/scan_packs.py` as scan-pack source of truth.
+- `reliabilitykit/core/scenario_registry.py` for scenario metadata.
+- Report redesign artifact for static HTML layout/content expectations.
+- AWS S3 private bucket and IAM permissions for artifact upload/presign.
+- SMTP provider credentials/configuration via `RELIABILITYKIT_SMTP_*` environment variables.
 - Operator-maintained written authorization/checklist storage.
-- Static hosting path/framework for landing page, following repository convention.
 
 ## 15. Assumptions
 
-### Confirmed Assumptions from Product Spec / User Confirmation
+### Confirmed Assumptions from Product / HITL Correction
 
-- Full MVP implementation is authorized.
-- MVP is manual/operator-assisted, not SaaS.
-- Landing page is static only.
-- CTA text is exactly `Request a Reliability Audit`.
-- CTA destination is exactly `#request-audit`.
-- CTA form/email flow is deferred and out of scope.
-- Reports and CSV are sanitized and privately delivered through S3 presigned URLs.
+- MVP remains manual/operator-assisted, not SaaS.
+- Runtime must apply scan-pack tests from `scan_packs.py` for each endpoint.
+- `core_reliability_scan` is the standard MVP scan pack.
+- `burst_stability` is included in the standard audit as the only bounded resilience-style check.
+- Standard bounded `burst_stability` does not require optional resilience approval.
+- All other resilience, fault-injection, chaos, destructive, and load tests remain excluded unless separately approved.
+- Reports and CSV are sanitized and private/offline/static-friendly.
+- Raw bodies, headers, traces, tokens, logs, stack traces, and secret references are excluded by default.
 - Sanitized metadata retention is 90 days.
-- Post-retention CSV email delivery is automated via SMTP environment variables.
-- Raw bodies, headers, and traces are not stored by default.
-- Bearer token is the first supported auth mechanism.
 
 ### Technical Assumptions Requiring Confirmation
 
-- Exact static landing page path in the repository.
-- Exact S3 presigned URL expiration duration for initial reports and retention CSV link fallback.
-- Default endpoint request timeout.
-- Whether sanitized metadata should be deleted, archived, or retained after successful post-retention CSV email.
-- Whether SMTP username/password are always required in the target deployment or conditional based on provider.
+- The exact endpoint request timeout default.
+- Exact S3 presigned URL expiration duration.
+- Whether post-retention export should produce one combined CSV or separate endpoint-cycle and scan-results CSVs. This design recommends separate CSVs to avoid breaking the existing endpoint-cycle contract.
+- Whether sanitized metadata should be deleted, archived, or retained elsewhere after successful post-retention email.
+- Final approved remediation copy per scenario if not added directly to `scenario_registry.py`.
 
 ## 16. Risks / Open Questions
 
@@ -682,32 +934,32 @@ reliabilitykit/storage/                                       # local sanitized 
 
 | Risk | Mitigation |
 | --- | --- |
-| Production testing causes operational concern | Require waiver and internal approval references before execution. |
-| Endpoint scope creep | Enforce max 10 unique `METHOD + PATH` endpoints. |
-| Sensitive data leaks into artifacts | Sanitized-only models, redaction checks, no raw persistence. |
-| Raw data accidentally persists through logs/cache | Logging discipline and artifact inspection tests. |
-| S3 URLs are public or over-permissive | Private bucket, no public-read ACL, presigned URLs only. |
-| Retention email fails silently | Delivery status ledger, sanitized failure logs, failure notification/remediation recipient. |
-| SMTP secrets leak in errors | Redact env-derived secrets and prohibit full environment dumps. |
-| Latency labels are disputed | Label pass/fail only with client-provided threshold. |
-| Optional burst testing mistaken for default | Separate approval gate and workflow. |
+| `burst_stability` is misused as load testing | Hard guardrails: max 5 requests, max concurrency 3, max 10 seconds, no ramp/soak/capacity metrics, sequential across endpoints. |
+| Scenario list drifts between runtime and report | Resolve scan pack from `scan_packs.py`; snapshot `ScanPackExecutionPlan`; report expected rows from snapshot. |
+| Scan-pack data absent produces weak report | Treat missing scan-pack execution data as `incomplete_audit_data` and QA failure once backend support is expected. |
+| Sensitive data leaks into evidence | Sanitized evidence model, denylist scans, HTML escaping, raw-data gates, no raw persistence. |
+| Negative validation scenarios harm endpoints | Use safe minimal invalid/missing payload checks only for approved endpoint/method context; record `not_applicable` if unsafe. |
+| Latency labels are misleading | Pass/fail only with configured thresholds; otherwise `observed_only`. |
+| Public artifact exposure | Private S3 objects only; presigned URLs; no public-read ACL. |
+| Retention email fails silently | Delivery ledger, retryable statuses, sanitized operator notification. |
 
 ### Open Questions
 
-- Where exactly should written waivers and internal approval checklist references be stored?
-- What expiration duration should be used for S3 presigned URLs?
-- What static site path/framework should host the landing page?
-- What endpoint request timeout default should be used?
-- After post-retention CSV email succeeds, should retained sanitized metadata be deleted, archived, or kept elsewhere?
+- Should remediation guidance live in `scenario_registry.py`, a separate report-copy map, or product-owned content file?
+- What exact endpoint timeout default should QA expect?
+- What S3 presigned URL expiration should be used for initial delivery and retention fallback links?
+- After successful post-retention CSV email, should retained sanitized metadata be deleted or archived?
+- Are any configured endpoints unsafe for validation/auth negative scenarios by method semantics, requiring `not_applicable` rather than execution?
 
 ## 17. Implementation Notes
 
-- Extend existing CLI/core/reporting/storage boundaries; do not add a customer-facing backend.
-- Keep all audit commands operator-facing.
-- Treat approval gates as fail-closed.
-- Never serialize bearer token values into config snapshots, report data, CSV, logs, or emails.
-- Build report/CSV/email payloads exclusively from sanitized metadata.
-- Use private S3 object keys and presigned URLs; public S3 website/report delivery is prohibited.
-- Implement retention automation so expired records are processed without manual email composition, but failures remain visible and retryable by an operator.
-- Ensure static landing page CTA text and href are exact: `Request a Reliability Audit` -> `#request-audit`.
-- Preserve product-spec traceability during implementation and QA.
+- Do not add production source code as part of this architecture update.
+- Implement scan-pack runtime by resolving `core_reliability_scan`; do not duplicate the scenario list in report code.
+- Ensure every endpoint renders every scenario row, including `Burst Stability`, with status and rationale.
+- Persist a sanitized scenario-plan snapshot for reproducibility.
+- Build report view models before template rendering; avoid complex business logic inside HTML templates.
+- Generate two CSV artifacts unless product/QA later approves one expanded combined CSV.
+- Run privacy gates before writing or uploading HTML/CSV artifacts.
+- Include bounded `burst_stability` methodology text in the report so customers understand it is not load testing.
+- Preserve exact static-report constraints: embedded CSS only, no external fonts/scripts/images/analytics/iframes, no backend calls, no client-side persistence.
+- Add QA coverage for scan-pack completeness, `burst_stability` inclusion, burst guardrail enforcement, unapproved scenario exclusion, privacy redaction, CSV columns, and static report accessibility/responsiveness.
